@@ -1,0 +1,632 @@
+# MedTech Solutions - Healthcare IT Vendor Profile
+# EHR/EMR integration platform for hospitals, clinics, and practices.
+
+# =============================================================================
+# Section 1: Company Information
+# =============================================================================
+company:
+  name: "MedTech Solutions"
+  founded: 2008
+  headquarters: "Boston, MA"
+  website: "medtechsolutions.com"
+  industry: "Healthcare IT"
+  employees: 680
+  annual_revenue: 125000000
+  tagline: "Connecting Care, Empowering Outcomes"
+  description: |
+    MedTech Solutions is a leading healthcare IT company specializing in
+    EHR/EMR integration, patient engagement, and clinical analytics.
+
+# =============================================================================
+# Section 2: Products (4 products with detailed issue profiles)
+# =============================================================================
+products:
+  - name: "EHR Connect"
+    code: "EHR"
+    type: "Integration Platform"
+    category: "Clinical Integration"
+    version: "6.2.0"
+    tiers:
+      - name: "Community"
+        price_monthly: 2500
+        connection_limit: 5
+      - name: "Professional"
+        price_monthly: 7500
+        connection_limit: 25
+      - name: "Enterprise"
+        price_monthly: 15000
+        connection_limit: null
+    features:
+      - "HL7 FHIR R4 native support"
+      - "HL7 v2.x message transformation"
+      - "Real-time ADT notifications"
+      - "Clinical document exchange (C-CDA)"
+      - "Bi-directional EHR sync"
+      - "Audit trail and compliance logging"
+    common_issues:
+      - category: "Integration"
+        issues:
+          - "HL7 message parsing failures on malformed ADT segments"
+          - "FHIR resource validation errors with custom extensions"
+          - "Connection timeout to on-premise Epic systems"
+      - category: "Data Sync"
+        issues:
+          - "Patient demographics not updating after merge"
+          - "Duplicate MRNs created during bulk import"
+          - "Lab results delayed in outbound feed"
+      - category: "Compliance"
+        issues:
+          - "Audit log missing entries for after-hours access"
+          - "PHI exposure alert in test environment"
+          - "Certificate renewal blocking production interface"
+
+  - name: "Patient Portal Pro"
+    code: "PPP"
+    type: "SaaS"
+    category: "Patient Engagement"
+    version: "4.1.2"
+    tiers:
+      - name: "Basic"
+        price_monthly: 1200
+        patient_limit: 5000
+      - name: "Standard"
+        price_monthly: 3500
+        patient_limit: 25000
+      - name: "Enterprise"
+        price_monthly: 8000
+        patient_limit: null
+    features:
+      - "Secure patient messaging"
+      - "Appointment scheduling"
+      - "Prescription refill requests"
+      - "Lab results viewing"
+      - "Telehealth integration"
+      - "Mobile app for iOS/Android"
+    common_issues:
+      - category: "Access"
+        issues:
+          - "Patient unable to reset password after email change"
+          - "Two-factor authentication SMS not delivering"
+          - "Proxy access not granting correct permissions"
+      - category: "Appointments"
+        issues:
+          - "Available slots not syncing from practice management"
+          - "Appointment confirmation emails going to spam"
+          - "Time zone showing incorrect for patient location"
+      - category: "Messaging"
+        issues:
+          - "Secure message attachments failing to upload"
+          - "Read receipts not updating for provider"
+          - "Message thread missing after portal upgrade"
+
+  - name: "Clinical Analytics Suite"
+    code: "CAS"
+    type: "SaaS"
+    category: "Healthcare Analytics"
+    version: "3.0.5"
+    tiers:
+      - name: "Department"
+        price_monthly: 4500
+        user_limit: 20
+      - name: "Facility"
+        price_monthly: 12000
+        user_limit: 100
+    features:
+      - "Population health dashboards"
+      - "Quality measure tracking (HEDIS/CMS)"
+      - "Risk stratification models"
+      - "Care gap identification"
+      - "Regulatory reporting automation"
+      - "Custom analytics workbench"
+    common_issues:
+      - category: "Data Quality"
+        issues:
+          - "Quality measure denominator mismatch with EHR"
+          - "Risk scores not updating after claims refresh"
+          - "Care gaps showing for discharged patients"
+      - category: "Reports"
+        issues:
+          - "CMS submission file validation errors"
+          - "Dashboard timeout on large patient populations"
+          - "Scheduled report delivery failures"
+      - category: "Integration"
+        issues:
+          - "Claims data feed lag exceeding 48 hours"
+          - "Clinical data missing from consolidated view"
+          - "Registry export format compatibility issues"
+
+  - name: "HIPAA Compliance Manager"
+    code: "HCM"
+    type: "SaaS"
+    category: "Compliance & Security"
+    version: "2.3.1"
+    tiers:
+      - name: "Standard"
+        price_monthly: 800
+        user_limit: 50
+      - name: "Enterprise"
+        price_monthly: 2500
+        user_limit: null
+    features:
+      - "Automated risk assessments"
+      - "Policy management and attestation"
+      - "Breach notification workflow"
+      - "Training tracking and certification"
+      - "Business associate agreement management"
+      - "Audit preparation toolkit"
+    common_issues:
+      - category: "Assessments"
+        issues:
+          - "Risk assessment template not saving custom questions"
+          - "Inherited controls not mapping correctly"
+          - "Remediation tracking out of sync"
+      - category: "Training"
+        issues:
+          - "Course completion not recording for SCORM modules"
+          - "Certificate generation failing for bulk completions"
+          - "Annual training reminder emails not sending"
+      - category: "Reporting"
+        issues:
+          - "Compliance dashboard showing stale data"
+          - "BAA expiration alerts not triggering"
+          - "Audit export missing required evidence files"
+
+# =============================================================================
+# Section 3: Support Team Structure
+# =============================================================================
+support_team:
+  tiers:
+    - level: "L1"
+      name: "Tier 1 Healthcare Support"
+      headcount: 8
+      shift_coverage: "24x7"
+      responsibilities:
+        - "Initial ticket triage and categorization"
+        - "Common access and portal issues"
+        - "Password resets and MFA support"
+        - "Basic interface status checks"
+        - "Knowledge base guidance"
+      escalation_threshold:
+        p1: "15 minutes"
+        p2: "1 hour"
+        p3: "4 hours"
+        p4: "8 hours"
+      kpis:
+        first_response_target: "< 30 minutes"
+        resolution_rate: "60%"
+
+    - level: "L2"
+      name: "Tier 2 Clinical Integration"
+      headcount: 4
+      shift_coverage: "16x7"
+      responsibilities:
+        - "HL7 message troubleshooting"
+        - "FHIR resource validation issues"
+        - "Interface configuration changes"
+        - "Data mapping corrections"
+        - "Patient record investigations"
+      escalation_threshold:
+        p1: "1 hour"
+        p2: "4 hours"
+      kpis:
+        resolution_rate: "80%"
+        escalation_rate: "< 20%"
+
+    - level: "L3"
+      name: "Engineering Escalation"
+      headcount: 2
+      shift_coverage: "On-call rotation"
+      responsibilities:
+        - "Production hotfixes for interfaces"
+        - "PHI incident investigation"
+        - "Complex integration debugging"
+        - "Performance optimization"
+        - "Security vulnerability response"
+      jira_project: "MTS"
+      kpis:
+        bug_fix_target: "< 3 business days"
+        customer_escalation_rate: "< 5%"
+
+    - level: "Manager"
+      name: "Support Management"
+      headcount: 1
+      responsibilities:
+        - "24/7 coverage coordination"
+        - "HIPAA incident management"
+        - "Customer success alignment"
+        - "SLA compliance monitoring"
+        - "Vendor relationship management"
+
+# =============================================================================
+# Section 4: Case Types and SLAs
+# =============================================================================
+case_types:
+  - type: "Technical"
+    percentage: 40
+    subtypes:
+      - name: "Integration"
+        percentage: 35
+        typical_products: ["EHR"]
+      - name: "Data Sync"
+        percentage: 30
+        typical_products: ["EHR", "CAS"]
+      - name: "Performance"
+        percentage: 20
+        typical_products: ["CAS", "PPP"]
+      - name: "Connectivity"
+        percentage: 15
+        typical_products: ["EHR"]
+
+  - type: "Access & Security"
+    percentage: 25
+    subtypes:
+      - name: "Patient Access"
+        percentage: 40
+      - name: "Provider Access"
+        percentage: 30
+      - name: "SSO/Authentication"
+        percentage: 20
+      - name: "PHI Access Audit"
+        percentage: 10
+
+  - type: "Compliance"
+    percentage: 20
+    subtypes:
+      - name: "HIPAA Inquiries"
+        percentage: 40
+      - name: "Audit Support"
+        percentage: 30
+      - name: "BAA Management"
+        percentage: 20
+      - name: "Breach Response"
+        percentage: 10
+
+  - type: "Feature Request"
+    percentage: 10
+    subtypes:
+      - name: "New Integration"
+        percentage: 50
+      - name: "Enhancement"
+        percentage: 50
+
+  - type: "Bug Report"
+    percentage: 5
+    subtypes:
+      - name: "UI/UX Bug"
+        percentage: 30
+      - name: "Functional Bug"
+        percentage: 50
+      - name: "Data Bug"
+        percentage: 20
+
+slas:
+  - priority: "P1"
+    label: "Critical"
+    description: "PHI exposure, system down affecting patient care"
+    response_time: "15 minutes"
+    resolution_target: "2 hours"
+    percentage: 5
+    examples:
+      - "PHI data breach or exposure"
+      - "Complete EHR interface failure"
+      - "Patient care system unavailable"
+
+  - priority: "P2"
+    label: "High"
+    description: "Major integration failure, compliance deadline at risk"
+    response_time: "1 hour"
+    resolution_target: "8 hours"
+    percentage: 15
+    examples:
+      - "Lab results not flowing to EHR"
+      - "Patient portal completely inaccessible"
+      - "Regulatory submission blocked"
+
+  - priority: "P3"
+    label: "Medium"
+    description: "Feature impaired, workaround available"
+    response_time: "4 hours"
+    resolution_target: "48 hours"
+    percentage: 50
+    examples:
+      - "Single interface degraded performance"
+      - "Report generation delays"
+      - "Non-critical data sync issues"
+
+  - priority: "P4"
+    label: "Low"
+    description: "Minor issue or general question"
+    response_time: "8 hours"
+    resolution_target: "5 business days"
+    percentage: 30
+    examples:
+      - "Documentation requests"
+      - "Feature configuration questions"
+      - "Training inquiries"
+
+# =============================================================================
+# Section 5: Customer Segmentation (10 customers total)
+# =============================================================================
+customer_segments:
+  - segment: "Enterprise"
+    count: 2
+    employee_range: [5000, 50000]
+    industries:
+      - "Hospital System"
+      - "Academic Medical Center"
+    products_used: ["EHR", "PPP", "CAS", "HCM"]
+    contract_value: "high"
+    annual_contract_value_range: [500000, 2000000]
+    support_tier: "Enterprise"
+    contacts_per_account: 8
+    typical_case_volume: "high"
+    characteristics:
+      - "Dedicated customer success manager"
+      - "Quarterly executive reviews"
+      - "Custom interface development"
+      - "24/7 priority support"
+
+  - segment: "Mid-Market"
+    count: 4
+    employee_range: [200, 2000]
+    industries:
+      - "Regional Hospital"
+      - "Multi-site Clinic Group"
+      - "Specialty Practice Network"
+      - "Urgent Care Chain"
+    products_used: ["EHR", "PPP", "CAS"]
+    contract_value: "medium"
+    annual_contract_value_range: [75000, 300000]
+    support_tier: "Professional"
+    contacts_per_account: 4
+    typical_case_volume: "medium"
+    characteristics:
+      - "Standard implementation"
+      - "Email and phone support"
+      - "Annual business reviews"
+
+  - segment: "SMB"
+    count: 4
+    employee_range: [25, 200]
+    industries:
+      - "Independent Practice"
+      - "Community Health Center"
+      - "Behavioral Health Clinic"
+      - "Dental Practice"
+    products_used: ["EHR", "PPP"]
+    contract_value: "low"
+    annual_contract_value_range: [15000, 50000]
+    support_tier: "Standard"
+    contacts_per_account: 2
+    typical_case_volume: "low"
+    characteristics:
+      - "Self-service preferred"
+      - "Quick setup required"
+      - "Cost-sensitive"
+
+# =============================================================================
+# Section 6: Communication Patterns
+# =============================================================================
+communication:
+  email_templates:
+    - scenario: "Initial Response"
+      tone: "professional, empathetic, HIPAA-conscious"
+      key_elements:
+        - "Thank customer for contacting"
+        - "Acknowledge the urgency in healthcare context"
+        - "Confirm no PHI in support communication"
+      example_opening: "Thank you for reaching out to MedTech Solutions Support."
+
+    - scenario: "Request for Information"
+      tone: "helpful, specific, compliance-aware"
+      key_elements:
+        - "Request specific technical details"
+        - "Remind about secure file sharing for PHI"
+        - "Provide alternative secure upload options"
+      example_opening: "To help us investigate this interface issue, could you please provide..."
+
+    - scenario: "Resolution Notification"
+      tone: "positive, clear, documentation-focused"
+      key_elements:
+        - "Confirm issue is resolved"
+        - "Document changes for compliance"
+        - "Provide verification steps"
+      example_opening: "Great news! We have resolved the integration issue you reported."
+
+    - scenario: "Escalation Notice"
+      tone: "reassuring, transparent, timeline-focused"
+      key_elements:
+        - "Explain engineering escalation"
+        - "Set clear timeline expectations"
+        - "Provide direct escalation contact"
+      example_opening: "We are escalating this to our Clinical Integration engineering team."
+
+    - scenario: "Follow-up Check"
+      tone: "caring, brief, proactive"
+      key_elements:
+        - "Verify interface stability"
+        - "Offer additional optimization"
+        - "Request feedback"
+      example_opening: "We wanted to follow up on your recent EHR Connect support case."
+
+  language_patterns:
+    formal_terms:
+      - "Thank you for contacting MedTech Solutions Support"
+      - "We understand the critical nature of healthcare operations"
+      - "Please ensure no PHI is included in this communication"
+      - "We appreciate your patience during our investigation"
+      - "Your feedback helps us improve patient care delivery"
+
+    technical_terms:
+      - "HL7 message"
+      - "FHIR resource"
+      - "ADT feed"
+      - "C-CDA document"
+      - "MRN reconciliation"
+      - "interface engine"
+      - "clinical data repository"
+      - "audit trail"
+      - "BAA agreement"
+      - "PHI protection"
+
+    product_specific:
+      EHR:
+        - "interface channel"
+        - "message transformation"
+        - "ADT notification"
+        - "clinical feed"
+        - "connection profile"
+      PPP:
+        - "patient portal"
+        - "secure messaging"
+        - "proxy access"
+        - "telehealth session"
+        - "appointment slot"
+      CAS:
+        - "quality measure"
+        - "risk score"
+        - "care gap"
+        - "population cohort"
+        - "registry submission"
+      HCM:
+        - "risk assessment"
+        - "policy attestation"
+        - "BAA tracker"
+        - "compliance score"
+        - "training module"
+
+  customer_tone_patterns:
+    frustrated:
+      indicators:
+        - "This is affecting patient care"
+        - "We cannot bill until this is fixed"
+        - "Our auditors are asking about this"
+        - "We've been escalating for days"
+      response_approach: "Acknowledge clinical impact, prioritize resolution, escalate immediately if patient care affected"
+
+    technical:
+      indicators:
+        - "The HL7 acknowledgment shows..."
+        - "FHIR validation is returning..."
+        - "I checked the interface logs..."
+      response_approach: "Match technical depth, provide detailed debugging, offer screen sharing for complex issues"
+
+    executive:
+      indicators:
+        - "I need this for our board meeting"
+        - "What is the impact on our compliance"
+        - "Please escalate to your leadership"
+      response_approach: "Executive summary format, focus on business and compliance impact, provide escalation path"
+
+# =============================================================================
+# Section 7: JIRA Escalation Patterns
+# =============================================================================
+jira:
+  project_key: "MTS"
+  project_name: "MedTech Solutions Engineering Support"
+
+  issue_types:
+    - name: "Bug"
+      percentage: 45
+      description: "Software defect requiring code fix"
+      typical_priority: ["High", "Critical"]
+
+    - name: "Support Escalation"
+      percentage: 30
+      description: "Customer issue requiring engineering investigation"
+      typical_priority: ["Critical", "High"]
+
+    - name: "Security Issue"
+      percentage: 15
+      description: "PHI or security-related concern"
+      typical_priority: ["Critical"]
+
+    - name: "Integration Request"
+      percentage: 10
+      description: "New EHR or system integration"
+      typical_priority: ["Medium", "Low"]
+
+  components:
+    - name: "EHR Connect"
+      code: "EHR"
+      lead: "L3 Engineer"
+    - name: "Patient Portal"
+      code: "PPP"
+      lead: "L3 Engineer"
+    - name: "Clinical Analytics"
+      code: "CAS"
+      lead: "L3 Engineer"
+    - name: "Compliance Manager"
+      code: "HCM"
+      lead: "L3 Engineer"
+    - name: "HL7 Engine"
+      code: "HL7"
+      lead: "L3 Engineer"
+    - name: "FHIR API"
+      code: "FHIR"
+      lead: "L3 Engineer"
+    - name: "Infrastructure"
+      code: "INFRA"
+      lead: "L3 Engineer"
+
+  priorities:
+    - name: "Critical"
+      description: "PHI exposure or patient care impact, immediate action"
+      response_time: "15 minutes"
+    - name: "High"
+      description: "Major functionality impaired, compliance at risk"
+      response_time: "2 hours"
+    - name: "Medium"
+      description: "Important but not blocking patient care"
+      response_time: "1 business day"
+    - name: "Low"
+      description: "Minor issue or enhancement"
+      response_time: "1 week"
+
+  escalation_criteria:
+    automatic:
+      - "Any PHI exposure or security incident"
+      - "Patient care system unavailable"
+      - "Regulatory submission deadline at risk"
+      - "P1 not resolved in 2 hours"
+      - "Same interface issue affecting 3+ customers"
+    manual:
+      - "Customer requests engineering review"
+      - "L2 unable to reproduce in test environment"
+      - "Suspected HL7/FHIR compliance issue"
+      - "Performance degradation confirmed"
+
+  workflow:
+    statuses:
+      - "Open"
+      - "In Progress"
+      - "In Review"
+      - "Pending Deployment"
+      - "Resolved"
+      - "Closed"
+    transitions:
+      - from: "Open"
+        to: "In Progress"
+        action: "Start Work"
+      - from: "In Progress"
+        to: "In Review"
+        action: "Submit for Review"
+      - from: "In Review"
+        to: "Pending Deployment"
+        action: "Approve"
+      - from: "Pending Deployment"
+        to: "Resolved"
+        action: "Deploy to Production"
+      - from: "Resolved"
+        to: "Closed"
+        action: "Verify and Close"
+
+  labels:
+    - "customer-escalation"
+    - "phi-incident"
+    - "patient-care-impact"
+    - "compliance-deadline"
+    - "interface-failure"
+    - "security-concern"
+    - "regression"
+    - "hotfix-required"

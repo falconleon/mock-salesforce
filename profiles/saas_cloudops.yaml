@@ -1,0 +1,630 @@
+# CloudOps Platform - SaaS/B2B Tech Vendor Profile
+# DevOps and infrastructure management for tech companies.
+
+# =============================================================================
+# Section 1: Company Information
+# =============================================================================
+company:
+  name: "CloudOps Platform"
+  founded: 2015
+  headquarters: "San Francisco, CA"
+  website: "cloudopsplatform.io"
+  industry: "SaaS / B2B Technology"
+  employees: 380
+  annual_revenue: 95000000
+  tagline: "Ship Faster, Scale Smarter"
+  description: |
+    CloudOps Platform provides DevOps automation, container orchestration,
+    and infrastructure management solutions for modern engineering teams.
+    Built by developers, for developers.
+
+# =============================================================================
+# Section 2: Products (4 products with detailed issue profiles)
+# =============================================================================
+products:
+  - name: "Container Orchestrator"
+    code: "COE"
+    type: "SaaS"
+    category: "Container Management"
+    version: "3.8.0"
+    tiers:
+      - name: "Developer"
+        price_monthly: 0
+        node_limit: 3
+      - name: "Team"
+        price_monthly: 499
+        node_limit: 25
+      - name: "Enterprise"
+        price_monthly: 2999
+        node_limit: null
+    features:
+      - "Kubernetes cluster management"
+      - "Auto-scaling policies"
+      - "Service mesh integration"
+      - "GitOps deployment workflows"
+      - "Multi-cloud support"
+      - "Container security scanning"
+    common_issues:
+      - category: "Deployment"
+        issues:
+          - "Rolling deployment stuck on pod termination"
+          - "Image pull failures from private registry"
+          - "ConfigMap changes not propagating to pods"
+      - category: "Scaling"
+        issues:
+          - "HPA not triggering despite high CPU usage"
+          - "Node autoscaler creating too many nodes"
+          - "Resource quotas blocking pod scheduling"
+      - category: "Networking"
+        issues:
+          - "Service mesh sidecar injection failing"
+          - "Ingress controller 502 errors under load"
+          - "NetworkPolicy blocking legitimate traffic"
+
+  - name: "CI/CD Pipeline"
+    code: "CIP"
+    type: "SaaS"
+    category: "Continuous Delivery"
+    version: "5.2.1"
+    tiers:
+      - name: "Starter"
+        price_monthly: 29
+        build_minutes: 3000
+      - name: "Professional"
+        price_monthly: 199
+        build_minutes: 25000
+      - name: "Enterprise"
+        price_monthly: 999
+        build_minutes: null
+    features:
+      - "YAML pipeline definitions"
+      - "Parallel and matrix builds"
+      - "Docker layer caching"
+      - "Secrets management"
+      - "Approval workflows"
+      - "Artifact management"
+    common_issues:
+      - category: "Builds"
+        issues:
+          - "Build cache miss causing slow builds"
+          - "Docker-in-Docker permissions failure"
+          - "Parallel jobs not starting concurrently"
+      - category: "Integration"
+        issues:
+          - "GitHub webhook not triggering pipeline"
+          - "Slack notifications failing after token rotation"
+          - "Jira integration creating duplicate tickets"
+      - category: "Secrets"
+        issues:
+          - "Environment variables not injecting into container"
+          - "Vault authentication failing intermittently"
+          - "Secret masking not working in logs"
+
+  - name: "Monitoring Suite"
+    code: "MOS"
+    type: "SaaS"
+    category: "Observability"
+    version: "4.1.0"
+    tiers:
+      - name: "Basic"
+        price_monthly: 99
+        retention_days: 7
+      - name: "Professional"
+        price_monthly: 499
+        retention_days: 30
+      - name: "Enterprise"
+        price_monthly: 1999
+        retention_days: 90
+    features:
+      - "Metrics collection and visualization"
+      - "Log aggregation and search"
+      - "Distributed tracing"
+      - "Custom dashboards"
+      - "Alerting and PagerDuty integration"
+      - "APM and error tracking"
+    common_issues:
+      - category: "Data Collection"
+        issues:
+          - "Agent not sending metrics after upgrade"
+          - "High cardinality labels causing ingestion drops"
+          - "Trace spans missing from distributed transaction"
+      - category: "Alerting"
+        issues:
+          - "Alert firing but notification not sent"
+          - "Flapping alerts due to threshold sensitivity"
+          - "Alert silences expiring unexpectedly"
+      - category: "Dashboards"
+        issues:
+          - "Dashboard query timeout on high-volume data"
+          - "Variable interpolation not working in panel"
+          - "Annotation events not showing on graphs"
+
+  - name: "Cost Optimizer"
+    code: "COP"
+    type: "SaaS"
+    category: "FinOps"
+    version: "2.5.0"
+    tiers:
+      - name: "Basic"
+        price_monthly: 199
+        cloud_spend_limit: 50000
+      - name: "Professional"
+        price_monthly: 799
+        cloud_spend_limit: 500000
+      - name: "Enterprise"
+        price_monthly: 2999
+        cloud_spend_limit: null
+    features:
+      - "Multi-cloud cost visibility"
+      - "Resource rightsizing recommendations"
+      - "Reserved instance planning"
+      - "Anomaly detection"
+      - "Budget alerts and forecasting"
+      - "Chargeback and showback reports"
+    common_issues:
+      - category: "Data Sync"
+        issues:
+          - "AWS Cost Explorer data delayed 48+ hours"
+          - "GCP billing export missing recent invoices"
+          - "Azure EA enrollment not connecting"
+      - category: "Recommendations"
+        issues:
+          - "Rightsizing suggestions not accounting for burst usage"
+          - "Reserved instance recommendations outdated"
+          - "Savings plans analysis showing incorrect savings"
+      - category: "Reporting"
+        issues:
+          - "Cost allocation tags not propagating"
+          - "Chargeback report showing untagged resources"
+          - "Forecast model predictions inaccurate"
+
+# =============================================================================
+# Section 3: Support Team Structure
+# =============================================================================
+support_team:
+  tiers:
+    - level: "L1"
+      name: "Tier 1 Developer Support"
+      headcount: 8
+      shift_coverage: "24x5"
+      responsibilities:
+        - "Initial ticket triage and categorization"
+        - "Common deployment issue guidance"
+        - "Documentation and runbook references"
+        - "Account and billing inquiries"
+        - "API key and access provisioning"
+      escalation_threshold:
+        p1: "30 minutes"
+        p2: "2 hours"
+        p3: "4 hours"
+        p4: "8 hours"
+      kpis:
+        first_response_target: "< 1 hour"
+        resolution_rate: "65%"
+
+    - level: "L2"
+      name: "Tier 2 Platform Engineering"
+      headcount: 4
+      shift_coverage: "16x5"
+      responsibilities:
+        - "Kubernetes troubleshooting"
+        - "Pipeline debugging"
+        - "Performance investigations"
+        - "Integration issue resolution"
+        - "Custom configuration support"
+      escalation_threshold:
+        p1: "2 hours"
+        p2: "8 hours"
+      kpis:
+        resolution_rate: "80%"
+        escalation_rate: "< 20%"
+
+    - level: "L3"
+      name: "Engineering Escalation"
+      headcount: 2
+      shift_coverage: "On-call rotation"
+      responsibilities:
+        - "Platform bug fixes"
+        - "Complex cluster debugging"
+        - "Database-level investigations"
+        - "Security incident response"
+        - "Feature flag overrides"
+      jira_project: "COP"
+      kpis:
+        bug_fix_target: "< 5 business days"
+        customer_escalation_rate: "< 5%"
+
+    - level: "Manager"
+      name: "Support Management"
+      headcount: 1
+      responsibilities:
+        - "Team scheduling and on-call"
+        - "Incident commander during outages"
+        - "Customer escalation handling"
+        - "SLA monitoring and reporting"
+        - "Process improvement"
+
+# =============================================================================
+# Section 4: Case Types and SLAs
+# =============================================================================
+case_types:
+  - type: "Technical"
+    percentage: 55
+    subtypes:
+      - name: "Deployment"
+        percentage: 30
+        typical_products: ["COE", "CIP"]
+      - name: "Performance"
+        percentage: 25
+        typical_products: ["COE", "MOS"]
+      - name: "Integration"
+        percentage: 25
+        typical_products: ["CIP", "MOS"]
+      - name: "Configuration"
+        percentage: 20
+        typical_products: ["COE", "COP"]
+
+  - type: "Account & Access"
+    percentage: 20
+    subtypes:
+      - name: "API Keys"
+        percentage: 35
+      - name: "SSO Configuration"
+        percentage: 30
+      - name: "Team Permissions"
+        percentage: 25
+      - name: "Billing"
+        percentage: 10
+
+  - type: "Feature Request"
+    percentage: 15
+    subtypes:
+      - name: "New Integration"
+        percentage: 40
+      - name: "Platform Enhancement"
+        percentage: 35
+      - name: "API Extension"
+        percentage: 25
+
+  - type: "Bug Report"
+    percentage: 10
+    subtypes:
+      - name: "UI/UX Bug"
+        percentage: 35
+      - name: "Functional Bug"
+        percentage: 45
+      - name: "API Bug"
+        percentage: 20
+
+slas:
+  - priority: "P1"
+    label: "Critical"
+    description: "Production deployment pipeline or monitoring down"
+    response_time: "30 minutes"
+    resolution_target: "4 hours"
+    percentage: 5
+    examples:
+      - "CI/CD pipeline completely blocked"
+      - "Kubernetes cluster unreachable"
+      - "All monitoring agents offline"
+
+  - priority: "P2"
+    label: "High"
+    description: "Major feature broken, deployments delayed"
+    response_time: "2 hours"
+    resolution_target: "24 hours"
+    percentage: 15
+    examples:
+      - "Docker builds failing for all projects"
+      - "Autoscaling not responding"
+      - "Alerting completely non-functional"
+
+  - priority: "P3"
+    label: "Medium"
+    description: "Feature impaired, workaround available"
+    response_time: "8 hours"
+    resolution_target: "72 hours"
+    percentage: 50
+    examples:
+      - "Single integration not working"
+      - "Dashboard loading slowly"
+      - "Cost data delayed"
+
+  - priority: "P4"
+    label: "Low"
+    description: "Minor issue or general question"
+    response_time: "24 hours"
+    resolution_target: "1 week"
+    percentage: 30
+    examples:
+      - "Feature questions"
+      - "Best practices guidance"
+      - "Documentation clarification"
+
+# =============================================================================
+# Section 5: Customer Segmentation (10 customers total)
+# =============================================================================
+customer_segments:
+  - segment: "Enterprise"
+    count: 2
+    employee_range: [2000, 20000]
+    industries:
+      - "Large Tech Company"
+      - "Digital-Native Enterprise"
+    products_used: ["COE", "CIP", "MOS", "COP"]
+    contract_value: "high"
+    annual_contract_value_range: [250000, 1000000]
+    support_tier: "Enterprise"
+    contacts_per_account: 10
+    typical_case_volume: "high"
+    characteristics:
+      - "Dedicated success manager"
+      - "Private Slack channel"
+      - "Custom SLA terms"
+      - "Quarterly roadmap reviews"
+
+  - segment: "Mid-Market"
+    count: 4
+    employee_range: [100, 1000]
+    industries:
+      - "Scale-up"
+      - "Series B-D Startup"
+      - "Digital Agency"
+      - "SaaS Vendor"
+    products_used: ["COE", "CIP", "MOS"]
+    contract_value: "medium"
+    annual_contract_value_range: [25000, 150000]
+    support_tier: "Professional"
+    contacts_per_account: 4
+    typical_case_volume: "medium"
+    characteristics:
+      - "Standard email support"
+      - "Shared Slack channel"
+      - "Self-service documentation"
+
+  - segment: "SMB"
+    count: 4
+    employee_range: [10, 100]
+    industries:
+      - "Early-stage Startup"
+      - "Development Agency"
+      - "Independent Software Vendor"
+      - "Consulting Firm"
+    products_used: ["CIP", "MOS"]
+    contract_value: "low"
+    annual_contract_value_range: [2000, 15000]
+    support_tier: "Standard"
+    contacts_per_account: 2
+    typical_case_volume: "low"
+    characteristics:
+      - "Self-service preferred"
+      - "Community support"
+      - "Cost-conscious"
+
+# =============================================================================
+# Section 6: Communication Patterns
+# =============================================================================
+communication:
+  email_templates:
+    - scenario: "Initial Response"
+      tone: "friendly, developer-to-developer"
+      key_elements:
+        - "Acknowledge the issue"
+        - "Ask clarifying technical questions"
+        - "Share relevant documentation"
+      example_opening: "Thanks for reaching out to CloudOps Support!"
+
+    - scenario: "Request for Information"
+      tone: "collaborative, specific"
+      key_elements:
+        - "Request logs, configs, or error messages"
+        - "Provide commands to gather info"
+        - "Offer to set up a screen share"
+      example_opening: "To dig into this further, could you share..."
+
+    - scenario: "Resolution Notification"
+      tone: "positive, technical"
+      key_elements:
+        - "Explain what was done"
+        - "Share the root cause"
+        - "Provide prevention tips"
+      example_opening: "Good news - we've resolved the issue!"
+
+    - scenario: "Escalation Notice"
+      tone: "transparent, timeline-focused"
+      key_elements:
+        - "Explain engineering involvement"
+        - "Set clear expectations"
+        - "Provide tracking reference"
+      example_opening: "I'm escalating this to our platform engineering team."
+
+    - scenario: "Follow-up Check"
+      tone: "casual, helpful"
+      key_elements:
+        - "Check if issue persists"
+        - "Offer additional optimization"
+        - "Request feedback"
+      example_opening: "Just checking in on your support case."
+
+  language_patterns:
+    formal_terms:
+      - "Thanks for reaching out to CloudOps Support"
+      - "Let us know if you need any clarification"
+      - "Happy to hop on a call to debug together"
+      - "We've updated our runbook based on your feedback"
+      - "Here's a link to our docs for future reference"
+
+    technical_terms:
+      - "pod"
+      - "deployment"
+      - "container"
+      - "ingress"
+      - "service mesh"
+      - "pipeline"
+      - "artifact"
+      - "metric"
+      - "span"
+      - "trace"
+
+    product_specific:
+      COE:
+        - "cluster"
+        - "node pool"
+        - "HPA"
+        - "PVC"
+        - "namespace"
+      CIP:
+        - "pipeline run"
+        - "build stage"
+        - "artifact"
+        - "cache layer"
+        - "approval gate"
+      MOS:
+        - "dashboard"
+        - "alert rule"
+        - "trace ID"
+        - "log stream"
+        - "metric query"
+      COP:
+        - "cost allocation"
+        - "rightsizing"
+        - "reserved instance"
+        - "spend anomaly"
+        - "chargeback"
+
+  customer_tone_patterns:
+    frustrated:
+      indicators:
+        - "Builds have been failing all day"
+        - "We can't deploy to production"
+        - "This is blocking our release"
+        - "We're about to miss our deadline"
+      response_approach: "Prioritize unblocking, offer screen share, escalate if deployment is blocked"
+
+    technical:
+      indicators:
+        - "The Kubernetes events show..."
+        - "I ran kubectl describe and..."
+        - "Looking at the Prometheus metrics..."
+      response_approach: "Match technical depth, share debugging commands, collaborate on troubleshooting"
+
+    executive:
+      indicators:
+        - "Our VP of Engineering is asking"
+        - "We need this for board metrics"
+        - "Can you involve your product team"
+      response_approach: "Executive summary, focus on business impact, offer architecture review"
+
+# =============================================================================
+# Section 7: JIRA Escalation Patterns
+# =============================================================================
+jira:
+  project_key: "COP"
+  project_name: "CloudOps Platform Engineering"
+
+  issue_types:
+    - name: "Bug"
+      percentage: 50
+      description: "Platform defect requiring code fix"
+      typical_priority: ["High", "Medium"]
+
+    - name: "Support Escalation"
+      percentage: 25
+      description: "Customer issue requiring engineering"
+      typical_priority: ["High", "Critical"]
+
+    - name: "Performance Issue"
+      percentage: 15
+      description: "Latency or throughput problem"
+      typical_priority: ["High", "Medium"]
+
+    - name: "Feature Request"
+      percentage: 10
+      description: "New capability or integration"
+      typical_priority: ["Medium", "Low"]
+
+  components:
+    - name: "Container Orchestrator"
+      code: "COE"
+      lead: "L3 Engineer"
+    - name: "CI/CD Pipeline"
+      code: "CIP"
+      lead: "L3 Engineer"
+    - name: "Monitoring Suite"
+      code: "MOS"
+      lead: "L3 Engineer"
+    - name: "Cost Optimizer"
+      code: "COP"
+      lead: "L3 Engineer"
+    - name: "API"
+      code: "API"
+      lead: "L3 Engineer"
+    - name: "Infrastructure"
+      code: "INFRA"
+      lead: "L3 Engineer"
+
+  priorities:
+    - name: "Critical"
+      description: "Production deployments blocked"
+      response_time: "30 minutes"
+    - name: "High"
+      description: "Major functionality impaired"
+      response_time: "2 hours"
+    - name: "Medium"
+      description: "Important but workaround exists"
+      response_time: "1 business day"
+    - name: "Low"
+      description: "Minor issue or enhancement"
+      response_time: "1 week"
+
+  escalation_criteria:
+    automatic:
+      - "Production cluster unreachable"
+      - "All pipeline builds failing"
+      - "Data loss or corruption"
+      - "Security vulnerability identified"
+      - "P1 not resolved in 4 hours"
+    manual:
+      - "Customer requests engineering review"
+      - "L2 unable to reproduce"
+      - "Suspected platform bug"
+      - "Performance regression identified"
+
+  workflow:
+    statuses:
+      - "Open"
+      - "In Progress"
+      - "In Review"
+      - "Staging"
+      - "Pending Release"
+      - "Resolved"
+      - "Closed"
+    transitions:
+      - from: "Open"
+        to: "In Progress"
+        action: "Start Work"
+      - from: "In Progress"
+        to: "In Review"
+        action: "Submit PR"
+      - from: "In Review"
+        to: "Staging"
+        action: "Merge to Main"
+      - from: "Staging"
+        to: "Pending Release"
+        action: "Staging Verified"
+      - from: "Pending Release"
+        to: "Resolved"
+        action: "Release to Production"
+      - from: "Resolved"
+        to: "Closed"
+        action: "Customer Verified"
+
+  labels:
+    - "customer-escalation"
+    - "production-impact"
+    - "deployment-blocked"
+    - "performance-regression"
+    - "security-concern"
+    - "data-integrity"
+    - "hotfix-required"
+    - "docs-needed"

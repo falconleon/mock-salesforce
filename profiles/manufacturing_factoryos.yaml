@@ -1,0 +1,644 @@
+# FactoryOS - Manufacturing Vendor Profile
+# Industrial IoT and MES platform for manufacturers.
+
+# =============================================================================
+# Section 1: Company Information
+# =============================================================================
+company:
+  name: "FactoryOS"
+  founded: 2010
+  headquarters: "Detroit, MI"
+  website: "factoryos.com"
+  industry: "Industrial Technology"
+  employees: 550
+  annual_revenue: 140000000
+  tagline: "Smart Manufacturing, Connected Future"
+  description: |
+    FactoryOS provides industrial IoT, manufacturing execution systems (MES),
+    and supply chain visibility solutions for discrete and process manufacturers.
+    Bridging the gap between OT and IT.
+
+# =============================================================================
+# Section 2: Products (4 products with detailed issue profiles)
+# =============================================================================
+products:
+  - name: "Shop Floor Control"
+    code: "SFC"
+    type: "On-Premise/Cloud"
+    category: "Manufacturing Execution"
+    version: "9.2.0"
+    tiers:
+      - name: "Department"
+        price_monthly: 2500
+        machine_limit: 10
+      - name: "Factory"
+        price_monthly: 8000
+        machine_limit: 50
+      - name: "Enterprise"
+        price_monthly: 25000
+        machine_limit: null
+    features:
+      - "Work order management"
+      - "Real-time production tracking"
+      - "Machine status monitoring"
+      - "Operator interface terminals"
+      - "Downtime tracking"
+      - "OEE calculation"
+    common_issues:
+      - category: "Connectivity"
+        issues:
+          - "PLC data not updating in real-time"
+          - "OPC-UA connection dropping after gateway restart"
+          - "Modbus timeout on high-frequency polling"
+      - category: "Production"
+        issues:
+          - "Work order not routing to correct work center"
+          - "Cycle time calculation showing incorrect values"
+          - "Production count mismatch with ERP"
+      - category: "Operator Interface"
+        issues:
+          - "Terminal freezing during shift change"
+          - "Barcode scanner not registering input"
+          - "Shift handoff notes not saving"
+
+  - name: "Predictive Maintenance"
+    code: "PDM"
+    type: "Cloud"
+    category: "Asset Management"
+    version: "4.5.1"
+    tiers:
+      - name: "Essential"
+        price_monthly: 1500
+        asset_limit: 25
+      - name: "Professional"
+        price_monthly: 5000
+        asset_limit: 100
+      - name: "Enterprise"
+        price_monthly: 15000
+        asset_limit: null
+    features:
+      - "Vibration analysis"
+      - "Temperature monitoring"
+      - "Anomaly detection ML models"
+      - "Maintenance scheduling"
+      - "Work order generation"
+      - "Asset health dashboards"
+    common_issues:
+      - category: "Sensors"
+        issues:
+          - "Vibration sensor data gaps during transmission"
+          - "Temperature readings showing outliers"
+          - "Sensor battery low alerts not triggering"
+      - category: "Predictions"
+        issues:
+          - "False positive failure alerts"
+          - "Model not detecting gradual degradation"
+          - "Confidence scores not matching historical accuracy"
+      - category: "Maintenance"
+        issues:
+          - "Work order not syncing to CMMS"
+          - "Scheduled maintenance conflicting with production"
+          - "Parts list not populated for predicted failure"
+
+  - name: "Quality Management"
+    code: "QMS"
+    type: "SaaS"
+    category: "Quality Control"
+    version: "6.1.0"
+    tiers:
+      - name: "Basic"
+        price_monthly: 1200
+        inspection_limit: 1000
+      - name: "Professional"
+        price_monthly: 4000
+        inspection_limit: 10000
+      - name: "Enterprise"
+        price_monthly: 12000
+        inspection_limit: null
+    features:
+      - "Inspection plan management"
+      - "SPC charting"
+      - "Non-conformance tracking"
+      - "CAPA management"
+      - "Document control"
+      - "Audit management"
+    common_issues:
+      - category: "Inspection"
+        issues:
+          - "Measurement data not syncing from CMM"
+          - "Control chart limits not recalculating"
+          - "Sampling plan not triggering at correct frequency"
+      - category: "Non-Conformance"
+        issues:
+          - "NCR workflow stuck in approval step"
+          - "Root cause assignment not linking to defect code"
+          - "Containment actions not tracking affected lots"
+      - category: "Documentation"
+        issues:
+          - "Document revision not routing for approval"
+          - "Training records not linking to document"
+          - "Audit finding not closing after CAPA completion"
+
+  - name: "Supply Chain Visibility"
+    code: "SCV"
+    type: "SaaS"
+    category: "Supply Chain"
+    version: "3.8.0"
+    tiers:
+      - name: "Starter"
+        price_monthly: 800
+        supplier_limit: 25
+      - name: "Professional"
+        price_monthly: 3000
+        supplier_limit: 200
+      - name: "Enterprise"
+        price_monthly: 10000
+        supplier_limit: null
+    features:
+      - "Supplier portal"
+      - "Purchase order collaboration"
+      - "Shipment tracking"
+      - "Lead time analytics"
+      - "Risk scoring"
+      - "Demand forecasting"
+    common_issues:
+      - category: "Supplier Data"
+        issues:
+          - "ASN not matching purchase order quantities"
+          - "Supplier portal login failing after password reset"
+          - "Invoice discrepancy not flagging for review"
+      - category: "Tracking"
+        issues:
+          - "Shipment status not updating from carrier"
+          - "ETA calculation not accounting for customs delay"
+          - "Container tracking losing signal in transit"
+      - category: "Forecasting"
+        issues:
+          - "Demand forecast not incorporating seasonal patterns"
+          - "Safety stock recommendations too conservative"
+          - "Lead time variance not factoring in supplier changes"
+
+# =============================================================================
+# Section 3: Support Team Structure
+# =============================================================================
+support_team:
+  tiers:
+    - level: "L1"
+      name: "Tier 1 Industrial Support"
+      headcount: 8
+      shift_coverage: "24x7"
+      responsibilities:
+        - "Initial ticket triage and categorization"
+        - "Common connectivity troubleshooting"
+        - "User access and password resets"
+        - "Basic dashboard questions"
+        - "Known issue workarounds"
+      escalation_threshold:
+        p1: "10 minutes"
+        p2: "30 minutes"
+        p3: "2 hours"
+        p4: "4 hours"
+      kpis:
+        first_response_target: "< 20 minutes"
+        resolution_rate: "55%"
+
+    - level: "L2"
+      name: "Tier 2 OT/IT Integration"
+      headcount: 4
+      shift_coverage: "16x7"
+      responsibilities:
+        - "PLC and OPC connectivity debugging"
+        - "MES configuration issues"
+        - "Sensor data troubleshooting"
+        - "Quality system integration"
+        - "ERP interface issues"
+      escalation_threshold:
+        p1: "1 hour"
+        p2: "4 hours"
+      kpis:
+        resolution_rate: "75%"
+        escalation_rate: "< 25%"
+
+    - level: "L3"
+      name: "Engineering Escalation"
+      headcount: 2
+      shift_coverage: "On-call rotation"
+      responsibilities:
+        - "Production system hotfixes"
+        - "Complex PLC integration debugging"
+        - "Database-level investigations"
+        - "Performance optimization"
+        - "Security vulnerability response"
+      jira_project: "FOS"
+      kpis:
+        bug_fix_target: "< 3 business days"
+        customer_escalation_rate: "< 5%"
+
+    - level: "Manager"
+      name: "Support Management"
+      headcount: 1
+      responsibilities:
+        - "24/7 coverage coordination"
+        - "Plant shutdown support planning"
+        - "Customer escalation handling"
+        - "SLA compliance monitoring"
+        - "OEM partner coordination"
+
+# =============================================================================
+# Section 4: Case Types and SLAs
+# =============================================================================
+case_types:
+  - type: "Technical"
+    percentage: 50
+    subtypes:
+      - name: "Connectivity"
+        percentage: 35
+        typical_products: ["SFC", "PDM"]
+      - name: "Data Integration"
+        percentage: 30
+        typical_products: ["SFC", "QMS"]
+      - name: "Performance"
+        percentage: 20
+        typical_products: ["SFC", "SCV"]
+      - name: "Hardware"
+        percentage: 15
+        typical_products: ["SFC", "PDM"]
+
+  - type: "Operations"
+    percentage: 25
+    subtypes:
+      - name: "Production Issues"
+        percentage: 40
+        typical_products: ["SFC"]
+      - name: "Quality Workflow"
+        percentage: 30
+        typical_products: ["QMS"]
+      - name: "Maintenance Planning"
+        percentage: 20
+        typical_products: ["PDM"]
+      - name: "Supplier Collaboration"
+        percentage: 10
+        typical_products: ["SCV"]
+
+  - type: "Configuration"
+    percentage: 15
+    subtypes:
+      - name: "System Setup"
+        percentage: 40
+      - name: "User Access"
+        percentage: 35
+      - name: "Integration Config"
+        percentage: 25
+
+  - type: "Feature Request"
+    percentage: 7
+    subtypes:
+      - name: "New Protocol"
+        percentage: 35
+      - name: "Report Enhancement"
+        percentage: 35
+      - name: "ERP Integration"
+        percentage: 30
+
+  - type: "Bug Report"
+    percentage: 3
+    subtypes:
+      - name: "Calculation Bug"
+        percentage: 45
+      - name: "UI/UX Bug"
+        percentage: 35
+      - name: "Data Bug"
+        percentage: 20
+
+slas:
+  - priority: "P1"
+    label: "Critical"
+    description: "Production line down, safety system affected"
+    response_time: "5 minutes"
+    resolution_target: "1 hour"
+    percentage: 5
+    examples:
+      - "Production line stopped due to MES"
+      - "Safety interlock system malfunction"
+      - "Complete connectivity loss to shop floor"
+
+  - priority: "P2"
+    label: "High"
+    description: "Production impaired, quality at risk"
+    response_time: "30 minutes"
+    resolution_target: "4 hours"
+    percentage: 15
+    examples:
+      - "Single work center down"
+      - "Quality inspection data not recording"
+      - "Critical sensor offline"
+
+  - priority: "P3"
+    label: "Medium"
+    description: "Feature impaired, workaround available"
+    response_time: "2 hours"
+    resolution_target: "24 hours"
+    percentage: 50
+    examples:
+      - "Reports not generating correctly"
+      - "Predictive alerts delayed"
+      - "Supplier portal slow"
+
+  - priority: "P4"
+    label: "Low"
+    description: "Minor issue or general question"
+    response_time: "8 hours"
+    resolution_target: "72 hours"
+    percentage: 30
+    examples:
+      - "Documentation requests"
+      - "Training inquiries"
+      - "Enhancement suggestions"
+
+# =============================================================================
+# Section 5: Customer Segmentation (10 customers total)
+# =============================================================================
+customer_segments:
+  - segment: "Enterprise"
+    count: 2
+    employee_range: [10000, 100000]
+    industries:
+      - "Automotive OEM"
+      - "Aerospace & Defense"
+    products_used: ["SFC", "PDM", "QMS", "SCV"]
+    contract_value: "high"
+    annual_contract_value_range: [1000000, 5000000]
+    support_tier: "Enterprise"
+    contacts_per_account: 15
+    typical_case_volume: "high"
+    characteristics:
+      - "Dedicated support engineer on-site"
+      - "24/7 emergency hotline"
+      - "Multi-plant rollout support"
+      - "Quarterly business reviews"
+
+  - segment: "Mid-Market"
+    count: 4
+    employee_range: [500, 5000]
+    industries:
+      - "Tier 1 Supplier"
+      - "Industrial Equipment"
+      - "Food & Beverage"
+      - "Pharmaceutical"
+    products_used: ["SFC", "PDM", "QMS"]
+    contract_value: "medium"
+    annual_contract_value_range: [150000, 500000]
+    support_tier: "Professional"
+    contacts_per_account: 6
+    typical_case_volume: "medium"
+    characteristics:
+      - "Standard support SLA"
+      - "Email and phone support"
+      - "Remote implementation support"
+
+  - segment: "SMB"
+    count: 4
+    employee_range: [50, 500]
+    industries:
+      - "Job Shop"
+      - "Contract Manufacturer"
+      - "Specialty Chemical"
+      - "Metal Fabrication"
+    products_used: ["SFC", "QMS"]
+    contract_value: "low"
+    annual_contract_value_range: [30000, 100000]
+    support_tier: "Standard"
+    contacts_per_account: 3
+    typical_case_volume: "low"
+    characteristics:
+      - "Self-service documentation"
+      - "Email-based support"
+      - "Remote-only implementation"
+
+# =============================================================================
+# Section 6: Communication Patterns
+# =============================================================================
+communication:
+  email_templates:
+    - scenario: "Initial Response"
+      tone: "professional, manufacturing-aware, urgent"
+      key_elements:
+        - "Acknowledge production impact"
+        - "Understand shift timing"
+        - "Set immediate next steps"
+      example_opening: "Thank you for contacting FactoryOS Support."
+
+    - scenario: "Request for Information"
+      tone: "specific, technical, safety-conscious"
+      key_elements:
+        - "Request PLC logs or OPC diagnostics"
+        - "Ask about machine state"
+        - "Confirm safety protocols followed"
+      example_opening: "To investigate this production issue, we need..."
+
+    - scenario: "Resolution Notification"
+      tone: "clear, verified, documented"
+      key_elements:
+        - "Confirm production restored"
+        - "Document root cause"
+        - "Provide prevention steps"
+      example_opening: "Your production issue has been resolved."
+
+    - scenario: "Escalation Notice"
+      tone: "urgent, transparent, timeline-focused"
+      key_elements:
+        - "Explain engineering involvement"
+        - "Set hard timeline"
+        - "Provide interim workaround"
+      example_opening: "This issue is being escalated to our OT engineering team."
+
+    - scenario: "Follow-up Check"
+      tone: "proactive, production-focused"
+      key_elements:
+        - "Verify production running"
+        - "Check OEE back to normal"
+        - "Offer optimization review"
+      example_opening: "We are following up on your recent FactoryOS support case."
+
+  language_patterns:
+    formal_terms:
+      - "Thank you for contacting FactoryOS Support"
+      - "We understand production uptime is critical"
+      - "Please confirm production is running normally"
+      - "We will coordinate with your plant engineering team"
+      - "Safety is our top priority"
+
+    technical_terms:
+      - "PLC"
+      - "OPC-UA"
+      - "Modbus"
+      - "work order"
+      - "work center"
+      - "OEE"
+      - "cycle time"
+      - "downtime code"
+      - "CMM"
+      - "SPC"
+
+    product_specific:
+      SFC:
+        - "work order"
+        - "machine status"
+        - "production count"
+        - "cycle time"
+        - "operator terminal"
+      PDM:
+        - "vibration signature"
+        - "failure prediction"
+        - "maintenance window"
+        - "asset health"
+        - "RUL"
+      QMS:
+        - "inspection plan"
+        - "control chart"
+        - "NCR"
+        - "CAPA"
+        - "audit finding"
+      SCV:
+        - "ASN"
+        - "supplier scorecard"
+        - "lead time"
+        - "demand forecast"
+        - "risk score"
+
+  customer_tone_patterns:
+    frustrated:
+      indicators:
+        - "The line is down"
+        - "We are losing production every hour"
+        - "Our customer is waiting for parts"
+        - "This is a safety concern"
+      response_approach: "Immediate priority, focus on production restoration, engage on-site support if available"
+
+    technical:
+      indicators:
+        - "The PLC shows fault code..."
+        - "OPC connection state is..."
+        - "The cycle time histogram shows..."
+      response_approach: "Match OT technical depth, share PLC debugging, offer remote session"
+
+    executive:
+      indicators:
+        - "Our plant manager is asking"
+        - "This affects our OEM contract"
+        - "We need this for our audit"
+      response_approach: "Executive summary, focus on production/quality impact, offer VP escalation"
+
+# =============================================================================
+# Section 7: JIRA Escalation Patterns
+# =============================================================================
+jira:
+  project_key: "FOS"
+  project_name: "FactoryOS Engineering Support"
+
+  issue_types:
+    - name: "Production Bug"
+      percentage: 40
+      description: "Issue affecting production operations"
+      typical_priority: ["Critical", "High"]
+
+    - name: "Support Escalation"
+      percentage: 30
+      description: "Customer issue requiring engineering"
+      typical_priority: ["High", "Critical"]
+
+    - name: "Connectivity Issue"
+      percentage: 20
+      description: "OT/IT integration problem"
+      typical_priority: ["High", "Medium"]
+
+    - name: "Enhancement"
+      percentage: 10
+      description: "New feature or protocol support"
+      typical_priority: ["Medium", "Low"]
+
+  components:
+    - name: "Shop Floor Control"
+      code: "SFC"
+      lead: "L3 Engineer"
+    - name: "Predictive Maintenance"
+      code: "PDM"
+      lead: "L3 Engineer"
+    - name: "Quality Management"
+      code: "QMS"
+      lead: "L3 Engineer"
+    - name: "Supply Chain"
+      code: "SCV"
+      lead: "L3 Engineer"
+    - name: "OPC/PLC Integration"
+      code: "OPC"
+      lead: "L3 Engineer"
+    - name: "Infrastructure"
+      code: "INFRA"
+      lead: "L3 Engineer"
+
+  priorities:
+    - name: "Critical"
+      description: "Production line down or safety issue"
+      response_time: "5 minutes"
+    - name: "High"
+      description: "Production impaired"
+      response_time: "30 minutes"
+    - name: "Medium"
+      description: "Important but production continues"
+      response_time: "4 hours"
+    - name: "Low"
+      description: "Minor issue or enhancement"
+      response_time: "1 business day"
+
+  escalation_criteria:
+    automatic:
+      - "Production line stopped"
+      - "Safety system malfunction"
+      - "Complete OT connectivity loss"
+      - "Quality data corruption"
+      - "P1 not resolved in 1 hour"
+    manual:
+      - "Customer requests engineering on-site"
+      - "L2 unable to restore connectivity"
+      - "Suspected PLC firmware issue"
+      - "Performance degradation during production"
+
+  workflow:
+    statuses:
+      - "Open"
+      - "In Progress"
+      - "In Review"
+      - "Factory Testing"
+      - "Pending Deployment"
+      - "Resolved"
+      - "Closed"
+    transitions:
+      - from: "Open"
+        to: "In Progress"
+        action: "Start Work"
+      - from: "In Progress"
+        to: "In Review"
+        action: "Submit for Review"
+      - from: "In Review"
+        to: "Factory Testing"
+        action: "Approve for Testing"
+      - from: "Factory Testing"
+        to: "Pending Deployment"
+        action: "Factory Test Passed"
+      - from: "Pending Deployment"
+        to: "Resolved"
+        action: "Deploy to Production"
+      - from: "Resolved"
+        to: "Closed"
+        action: "Verify and Close"
+
+  labels:
+    - "production-down"
+    - "safety-concern"
+    - "plc-issue"
+    - "opc-connectivity"
+    - "quality-impact"
+    - "customer-audit"
+    - "hotfix-required"
+    - "oem-contract"

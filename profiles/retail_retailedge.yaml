@@ -1,0 +1,644 @@
+# RetailEdge - Retail/E-commerce Vendor Profile
+# Omnichannel commerce platform for retailers.
+
+# =============================================================================
+# Section 1: Company Information
+# =============================================================================
+company:
+  name: "RetailEdge"
+  founded: 2011
+  headquarters: "Chicago, IL"
+  website: "retailedge.com"
+  industry: "Retail Technology"
+  employees: 420
+  annual_revenue: 110000000
+  tagline: "Unified Commerce, Exceptional Experiences"
+  description: |
+    RetailEdge provides omnichannel commerce solutions including POS,
+    inventory management, e-commerce, and customer loyalty programs
+    for retailers of all sizes.
+
+# =============================================================================
+# Section 2: Products (4 products with detailed issue profiles)
+# =============================================================================
+products:
+  - name: "Point of Sale System"
+    code: "POS"
+    type: "Cloud + Hardware"
+    category: "Retail Operations"
+    version: "7.3.0"
+    tiers:
+      - name: "Essential"
+        price_monthly: 79
+        register_limit: 1
+      - name: "Growth"
+        price_monthly: 199
+        register_limit: 5
+      - name: "Enterprise"
+        price_monthly: 499
+        register_limit: null
+    features:
+      - "Touch-screen checkout"
+      - "Barcode scanning"
+      - "Multiple payment methods"
+      - "Receipt customization"
+      - "Employee management"
+      - "Offline mode capability"
+    common_issues:
+      - category: "Hardware"
+        issues:
+          - "Card reader not detecting chip cards"
+          - "Receipt printer jamming during peak hours"
+          - "Barcode scanner disconnecting intermittently"
+      - category: "Payments"
+        issues:
+          - "Credit card authorization timeout"
+          - "Gift card balance not updating after redemption"
+          - "Split payment calculation error"
+      - category: "Sync"
+        issues:
+          - "Offline transactions not syncing after reconnect"
+          - "Price changes not reflecting at register"
+          - "Employee punch data missing from reports"
+
+  - name: "Inventory Manager"
+    code: "INV"
+    type: "SaaS"
+    category: "Inventory & Supply Chain"
+    version: "5.1.2"
+    tiers:
+      - name: "Basic"
+        price_monthly: 149
+        sku_limit: 5000
+      - name: "Professional"
+        price_monthly: 399
+        sku_limit: 50000
+      - name: "Enterprise"
+        price_monthly: 999
+        sku_limit: null
+    features:
+      - "Real-time stock levels"
+      - "Multi-location inventory"
+      - "Automatic reorder points"
+      - "Purchase order management"
+      - "Vendor management"
+      - "Stock transfer workflows"
+    common_issues:
+      - category: "Stock Accuracy"
+        issues:
+          - "Physical count mismatch with system"
+          - "Negative inventory showing for sold items"
+          - "Transfer in-transit stock not visible"
+      - category: "Reorder"
+        issues:
+          - "Auto-reorder not triggering at threshold"
+          - "Purchase order duplicating after edit"
+          - "Vendor lead time not calculating correctly"
+      - category: "Multi-location"
+        issues:
+          - "Store-to-store transfer delays"
+          - "Location allocation rules not applying"
+          - "Warehouse stock not syncing to stores"
+
+  - name: "E-commerce Engine"
+    code: "ECE"
+    type: "SaaS"
+    category: "Digital Commerce"
+    version: "4.6.0"
+    tiers:
+      - name: "Starter"
+        price_monthly: 99
+        product_limit: 500
+      - name: "Growth"
+        price_monthly: 349
+        product_limit: 10000
+      - name: "Enterprise"
+        price_monthly: 899
+        product_limit: null
+    features:
+      - "Responsive storefront"
+      - "Product catalog management"
+      - "Shopping cart and checkout"
+      - "Shipping rate calculation"
+      - "Tax calculation"
+      - "Order management"
+    common_issues:
+      - category: "Checkout"
+        issues:
+          - "Cart abandonment at payment step"
+          - "Promo code not applying to cart"
+          - "Shipping options not loading for address"
+      - category: "Product"
+        issues:
+          - "Product images not displaying on mobile"
+          - "Variant combinations not calculating price"
+          - "Search not returning relevant results"
+      - category: "Orders"
+        issues:
+          - "Order confirmation email not sending"
+          - "Inventory not decrementing after order"
+          - "Split shipment tracking showing incorrect status"
+
+  - name: "Customer Loyalty"
+    code: "CLY"
+    type: "SaaS"
+    category: "Customer Engagement"
+    version: "3.2.1"
+    tiers:
+      - name: "Basic"
+        price_monthly: 99
+        member_limit: 10000
+      - name: "Professional"
+        price_monthly: 299
+        member_limit: 100000
+      - name: "Enterprise"
+        price_monthly: 699
+        member_limit: null
+    features:
+      - "Points-based rewards"
+      - "Tiered membership levels"
+      - "Personalized offers"
+      - "Birthday rewards"
+      - "Referral program"
+      - "Member mobile app"
+    common_issues:
+      - category: "Points"
+        issues:
+          - "Points not accruing on qualifying purchase"
+          - "Reward redemption failing at checkout"
+          - "Points expiration not notifying members"
+      - category: "Tiers"
+        issues:
+          - "Tier upgrade not triggering after qualification"
+          - "Benefits not applying to upgraded tier"
+          - "Annual tier evaluation not processing"
+      - category: "Campaigns"
+        issues:
+          - "Promotional offer not targeting correct segment"
+          - "Email campaign showing wrong member name"
+          - "Referral bonus not crediting to advocate"
+
+# =============================================================================
+# Section 3: Support Team Structure
+# =============================================================================
+support_team:
+  tiers:
+    - level: "L1"
+      name: "Tier 1 Retail Support"
+      headcount: 8
+      shift_coverage: "18x7"
+      responsibilities:
+        - "Initial ticket triage and categorization"
+        - "Common POS troubleshooting"
+        - "Password resets and access issues"
+        - "Basic e-commerce questions"
+        - "Order status inquiries"
+      escalation_threshold:
+        p1: "15 minutes"
+        p2: "1 hour"
+        p3: "4 hours"
+        p4: "8 hours"
+      kpis:
+        first_response_target: "< 30 minutes"
+        resolution_rate: "70%"
+
+    - level: "L2"
+      name: "Tier 2 Commerce Operations"
+      headcount: 4
+      shift_coverage: "16x7"
+      responsibilities:
+        - "POS hardware troubleshooting"
+        - "Inventory discrepancy investigation"
+        - "Payment gateway issues"
+        - "E-commerce checkout debugging"
+        - "Integration troubleshooting"
+      escalation_threshold:
+        p1: "1 hour"
+        p2: "4 hours"
+      kpis:
+        resolution_rate: "85%"
+        escalation_rate: "< 15%"
+
+    - level: "L3"
+      name: "Engineering Escalation"
+      headcount: 2
+      shift_coverage: "On-call rotation"
+      responsibilities:
+        - "Platform bug fixes"
+        - "Payment processing issues"
+        - "Complex integration debugging"
+        - "Data reconciliation"
+        - "Performance optimization"
+      jira_project: "RTE"
+      kpis:
+        bug_fix_target: "< 4 business days"
+        customer_escalation_rate: "< 5%"
+
+    - level: "Manager"
+      name: "Support Management"
+      headcount: 1
+      responsibilities:
+        - "Peak season staffing"
+        - "Escalation management"
+        - "Vendor coordination"
+        - "SLA monitoring"
+        - "Customer success alignment"
+
+# =============================================================================
+# Section 4: Case Types and SLAs
+# =============================================================================
+case_types:
+  - type: "Technical"
+    percentage: 45
+    subtypes:
+      - name: "POS Hardware"
+        percentage: 30
+        typical_products: ["POS"]
+      - name: "Checkout/Payment"
+        percentage: 25
+        typical_products: ["POS", "ECE"]
+      - name: "Inventory Sync"
+        percentage: 25
+        typical_products: ["INV", "ECE"]
+      - name: "Integration"
+        percentage: 20
+        typical_products: ["ECE", "CLY"]
+
+  - type: "Operations"
+    percentage: 30
+    subtypes:
+      - name: "Order Issues"
+        percentage: 35
+        typical_products: ["ECE"]
+      - name: "Stock Discrepancy"
+        percentage: 30
+        typical_products: ["INV"]
+      - name: "Returns/Refunds"
+        percentage: 20
+        typical_products: ["POS", "ECE"]
+      - name: "Loyalty Program"
+        percentage: 15
+        typical_products: ["CLY"]
+
+  - type: "Account & Billing"
+    percentage: 15
+    subtypes:
+      - name: "User Access"
+        percentage: 40
+      - name: "Store Configuration"
+        percentage: 35
+      - name: "Subscription"
+        percentage: 25
+
+  - type: "Feature Request"
+    percentage: 7
+    subtypes:
+      - name: "New Payment Method"
+        percentage: 35
+      - name: "Report Enhancement"
+        percentage: 35
+      - name: "Integration Request"
+        percentage: 30
+
+  - type: "Bug Report"
+    percentage: 3
+    subtypes:
+      - name: "UI/UX Bug"
+        percentage: 40
+      - name: "Calculation Bug"
+        percentage: 40
+      - name: "Data Bug"
+        percentage: 20
+
+slas:
+  - priority: "P1"
+    label: "Critical"
+    description: "POS down, unable to process transactions"
+    response_time: "15 minutes"
+    resolution_target: "2 hours"
+    percentage: 5
+    examples:
+      - "All registers down at store"
+      - "Payment processing completely failed"
+      - "E-commerce checkout unavailable"
+
+  - priority: "P2"
+    label: "High"
+    description: "Major feature broken, sales impacted"
+    response_time: "1 hour"
+    resolution_target: "8 hours"
+    percentage: 15
+    examples:
+      - "Credit card payments failing"
+      - "Inventory not syncing between channels"
+      - "Loyalty points not calculating"
+
+  - priority: "P3"
+    label: "Medium"
+    description: "Feature impaired, workaround available"
+    response_time: "4 hours"
+    resolution_target: "48 hours"
+    percentage: 50
+    examples:
+      - "Single payment method not working"
+      - "Report generation slow"
+      - "Product import failing for some items"
+
+  - priority: "P4"
+    label: "Low"
+    description: "Minor issue or general question"
+    response_time: "8 hours"
+    resolution_target: "5 business days"
+    percentage: 30
+    examples:
+      - "Feature questions"
+      - "Training requests"
+      - "Enhancement suggestions"
+
+# =============================================================================
+# Section 5: Customer Segmentation (10 customers total)
+# =============================================================================
+customer_segments:
+  - segment: "Enterprise"
+    count: 2
+    employee_range: [5000, 50000]
+    industries:
+      - "Department Store Chain"
+      - "National Specialty Retailer"
+    products_used: ["POS", "INV", "ECE", "CLY"]
+    contract_value: "high"
+    annual_contract_value_range: [500000, 2000000]
+    support_tier: "Enterprise"
+    contacts_per_account: 8
+    typical_case_volume: "high"
+    characteristics:
+      - "Dedicated account manager"
+      - "24/7 priority support"
+      - "Custom integrations"
+      - "Peak season support plan"
+
+  - segment: "Mid-Market"
+    count: 4
+    employee_range: [100, 2000]
+    industries:
+      - "Regional Retail Chain"
+      - "Specialty Retailer"
+      - "Fashion Brand"
+      - "Home Goods Store"
+    products_used: ["POS", "INV", "ECE"]
+    contract_value: "medium"
+    annual_contract_value_range: [50000, 250000]
+    support_tier: "Professional"
+    contacts_per_account: 4
+    typical_case_volume: "medium"
+    characteristics:
+      - "Standard support hours"
+      - "Email and phone support"
+      - "Quarterly business reviews"
+
+  - segment: "SMB"
+    count: 4
+    employee_range: [5, 100]
+    industries:
+      - "Boutique"
+      - "Local Gift Shop"
+      - "Pop-up Retailer"
+      - "Online-First Brand"
+    products_used: ["POS", "ECE"]
+    contract_value: "low"
+    annual_contract_value_range: [5000, 30000]
+    support_tier: "Standard"
+    contacts_per_account: 2
+    typical_case_volume: "low"
+    characteristics:
+      - "Self-service preferred"
+      - "Email support"
+      - "Cost-conscious"
+
+# =============================================================================
+# Section 6: Communication Patterns
+# =============================================================================
+communication:
+  email_templates:
+    - scenario: "Initial Response"
+      tone: "friendly, retail-aware, urgent"
+      key_elements:
+        - "Acknowledge the business impact"
+        - "Understand store hours context"
+        - "Set immediate next steps"
+      example_opening: "Thank you for contacting RetailEdge Support."
+
+    - scenario: "Request for Information"
+      tone: "specific, practical"
+      key_elements:
+        - "Request transaction IDs or screenshots"
+        - "Ask about timing and frequency"
+        - "Provide self-help steps to try"
+      example_opening: "To investigate this issue, could you please provide..."
+
+    - scenario: "Resolution Notification"
+      tone: "positive, clear, actionable"
+      key_elements:
+        - "Confirm the fix"
+        - "Explain what was done"
+        - "Provide verification steps"
+      example_opening: "Great news! We've resolved the issue you reported."
+
+    - scenario: "Escalation Notice"
+      tone: "reassuring, timeline-focused"
+      key_elements:
+        - "Explain engineering involvement"
+        - "Set clear timeline"
+        - "Provide workaround if possible"
+      example_opening: "We're escalating this to our commerce engineering team."
+
+    - scenario: "Follow-up Check"
+      tone: "caring, proactive"
+      key_elements:
+        - "Verify systems working"
+        - "Check transaction volume normal"
+        - "Offer additional help"
+      example_opening: "We wanted to follow up on your recent support case."
+
+  language_patterns:
+    formal_terms:
+      - "Thank you for contacting RetailEdge Support"
+      - "We understand how critical your store operations are"
+      - "Your customers are our priority too"
+      - "Please let us know if transactions are flowing normally"
+      - "We appreciate your patience during peak hours"
+
+    technical_terms:
+      - "transaction"
+      - "SKU"
+      - "POS terminal"
+      - "card reader"
+      - "inventory sync"
+      - "checkout flow"
+      - "cart abandonment"
+      - "fulfillment"
+      - "loyalty points"
+      - "promo code"
+
+    product_specific:
+      POS:
+        - "register"
+        - "drawer"
+        - "receipt"
+        - "tender type"
+        - "void transaction"
+      INV:
+        - "stock level"
+        - "reorder point"
+        - "purchase order"
+        - "stock transfer"
+        - "cycle count"
+      ECE:
+        - "storefront"
+        - "cart"
+        - "checkout"
+        - "shipping method"
+        - "order status"
+      CLY:
+        - "points balance"
+        - "reward tier"
+        - "member"
+        - "redemption"
+        - "referral"
+
+  customer_tone_patterns:
+    frustrated:
+      indicators:
+        - "We have customers waiting in line"
+        - "We can't ring up sales"
+        - "This is our busiest day"
+        - "We're losing revenue every minute"
+      response_approach: "Immediate priority, focus on transaction restoration, escalate immediately if POS is down"
+
+    technical:
+      indicators:
+        - "The API is returning..."
+        - "I checked the sync logs and..."
+        - "The database shows..."
+      response_approach: "Match technical depth, provide API debugging, share backend logs"
+
+    executive:
+      indicators:
+        - "Our CEO is asking about this"
+        - "We need this fixed before our sale event"
+        - "This is affecting our quarterly numbers"
+      response_approach: "Executive summary, focus on revenue impact, offer executive escalation path"
+
+# =============================================================================
+# Section 7: JIRA Escalation Patterns
+# =============================================================================
+jira:
+  project_key: "RTE"
+  project_name: "RetailEdge Engineering Support"
+
+  issue_types:
+    - name: "Bug"
+      percentage: 45
+      description: "Software defect requiring code fix"
+      typical_priority: ["High", "Medium"]
+
+    - name: "Support Escalation"
+      percentage: 30
+      description: "Customer issue requiring engineering"
+      typical_priority: ["Critical", "High"]
+
+    - name: "Payment Issue"
+      percentage: 15
+      description: "Payment processing problem"
+      typical_priority: ["Critical", "High"]
+
+    - name: "Enhancement"
+      percentage: 10
+      description: "New feature or integration"
+      typical_priority: ["Medium", "Low"]
+
+  components:
+    - name: "Point of Sale"
+      code: "POS"
+      lead: "L3 Engineer"
+    - name: "Inventory Manager"
+      code: "INV"
+      lead: "L3 Engineer"
+    - name: "E-commerce Engine"
+      code: "ECE"
+      lead: "L3 Engineer"
+    - name: "Customer Loyalty"
+      code: "CLY"
+      lead: "L3 Engineer"
+    - name: "Payment Gateway"
+      code: "PAY"
+      lead: "L3 Engineer"
+    - name: "Infrastructure"
+      code: "INFRA"
+      lead: "L3 Engineer"
+
+  priorities:
+    - name: "Critical"
+      description: "Store transactions blocked"
+      response_time: "15 minutes"
+    - name: "High"
+      description: "Major commerce feature impaired"
+      response_time: "1 hour"
+    - name: "Medium"
+      description: "Important but sales continuing"
+      response_time: "4 hours"
+    - name: "Low"
+      description: "Minor issue or enhancement"
+      response_time: "1 business day"
+
+  escalation_criteria:
+    automatic:
+      - "POS down at multiple locations"
+      - "Payment processing failure"
+      - "E-commerce checkout unavailable"
+      - "Inventory sync failure affecting fulfillment"
+      - "P1 not resolved in 2 hours"
+    manual:
+      - "Customer requests engineering review"
+      - "L2 unable to restore service"
+      - "Suspected data corruption"
+      - "Peak season performance issue"
+
+  workflow:
+    statuses:
+      - "Open"
+      - "In Progress"
+      - "In Review"
+      - "Testing"
+      - "Pending Deployment"
+      - "Resolved"
+      - "Closed"
+    transitions:
+      - from: "Open"
+        to: "In Progress"
+        action: "Start Work"
+      - from: "In Progress"
+        to: "In Review"
+        action: "Submit for Review"
+      - from: "In Review"
+        to: "Testing"
+        action: "Approve"
+      - from: "Testing"
+        to: "Pending Deployment"
+        action: "QA Passed"
+      - from: "Pending Deployment"
+        to: "Resolved"
+        action: "Deploy to Production"
+      - from: "Resolved"
+        to: "Closed"
+        action: "Verify and Close"
+
+  labels:
+    - "customer-escalation"
+    - "pos-down"
+    - "payment-failure"
+    - "revenue-impact"
+    - "peak-season"
+    - "inventory-sync"
+    - "hotfix-required"
+    - "pci-compliance"

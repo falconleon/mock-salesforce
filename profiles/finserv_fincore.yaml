@@ -1,0 +1,640 @@
+# FinCore Systems - Financial Services Vendor Profile
+# Trading and risk management platform for investment firms.
+
+# =============================================================================
+# Section 1: Company Information
+# =============================================================================
+company:
+  name: "FinCore Systems"
+  founded: 2005
+  headquarters: "New York, NY"
+  website: "fincoresystems.com"
+  industry: "Financial Technology"
+  employees: 520
+  annual_revenue: 180000000
+  tagline: "Precision Trading, Intelligent Risk"
+  description: |
+    FinCore Systems provides institutional-grade trading execution,
+    risk analytics, and regulatory reporting solutions for investment
+    banks, hedge funds, and wealth management firms.
+
+# =============================================================================
+# Section 2: Products (4 products with detailed issue profiles)
+# =============================================================================
+products:
+  - name: "Trade Execution Engine"
+    code: "TEE"
+    type: "On-Premise/Cloud"
+    category: "Trading Systems"
+    version: "8.5.2"
+    tiers:
+      - name: "Professional"
+        price_monthly: 25000
+        order_limit: 100000
+      - name: "Enterprise"
+        price_monthly: 75000
+        order_limit: 1000000
+      - name: "Institutional"
+        price_monthly: 200000
+        order_limit: null
+    features:
+      - "Multi-asset class order routing"
+      - "FIX protocol connectivity"
+      - "Smart order routing algorithms"
+      - "Real-time position management"
+      - "Pre-trade compliance checks"
+      - "Sub-millisecond execution"
+    common_issues:
+      - category: "Connectivity"
+        issues:
+          - "FIX session disconnecting during market hours"
+          - "Order acknowledgments delayed from exchange"
+          - "Failover to backup venue not triggering"
+      - category: "Execution"
+        issues:
+          - "Order stuck in pending state after partial fill"
+          - "Incorrect lot size calculation for odd lots"
+          - "Time-in-force not applying correctly for GTC orders"
+      - category: "Performance"
+        issues:
+          - "Latency spike during high-volume periods"
+          - "Order book update delays exceeding threshold"
+          - "Memory pressure causing garbage collection pauses"
+
+  - name: "Risk Analytics Platform"
+    code: "RAP"
+    type: "Cloud"
+    category: "Risk Management"
+    version: "5.2.0"
+    tiers:
+      - name: "Standard"
+        price_monthly: 15000
+        portfolio_limit: 50
+      - name: "Professional"
+        price_monthly: 45000
+        portfolio_limit: 500
+      - name: "Enterprise"
+        price_monthly: 120000
+        portfolio_limit: null
+    features:
+      - "Real-time VaR calculations"
+      - "Stress testing scenarios"
+      - "Greeks computation (Delta, Gamma, Vega)"
+      - "Counterparty risk analysis"
+      - "Liquidity risk monitoring"
+      - "Historical simulation engine"
+    common_issues:
+      - category: "Calculations"
+        issues:
+          - "VaR calculation timeout on large portfolios"
+          - "Greeks not updating after corporate action"
+          - "Stress test scenarios not loading custom parameters"
+      - category: "Data"
+        issues:
+          - "Market data gaps causing stale risk numbers"
+          - "Position reconciliation mismatch with OMS"
+          - "Historical data missing for new instruments"
+      - category: "Performance"
+        issues:
+          - "Intraday risk recalculation delayed"
+          - "Batch risk reports not completing before market open"
+          - "API rate limits affecting real-time dashboards"
+
+  - name: "Regulatory Reporting Suite"
+    code: "RRS"
+    type: "SaaS"
+    category: "Compliance & Reporting"
+    version: "4.8.1"
+    tiers:
+      - name: "Basic"
+        price_monthly: 8000
+        jurisdiction_limit: 2
+      - name: "Professional"
+        price_monthly: 25000
+        jurisdiction_limit: 10
+      - name: "Global"
+        price_monthly: 75000
+        jurisdiction_limit: null
+    features:
+      - "SEC Form ADV automation"
+      - "MiFID II transaction reporting"
+      - "EMIR trade repository submissions"
+      - "SOX 404 control documentation"
+      - "Best execution analysis"
+      - "Audit trail generation"
+    common_issues:
+      - category: "Submissions"
+        issues:
+          - "EMIR submission rejected for UTI format"
+          - "SEC filing validation errors on position data"
+          - "MiFID II report missing required fields"
+      - category: "Data"
+        issues:
+          - "LEI lookup failing for counterparty"
+          - "Trade enrichment missing required identifiers"
+          - "Cross-reference data out of sync"
+      - category: "Deadlines"
+        issues:
+          - "Batch submission not completing before cutoff"
+          - "Amendment workflow blocking re-submission"
+          - "Historical corrections not applying retroactively"
+
+  - name: "Market Data Feed"
+    code: "MDF"
+    type: "Cloud"
+    category: "Data Services"
+    version: "3.4.0"
+    tiers:
+      - name: "Delayed"
+        price_monthly: 500
+        latency: "15 min"
+      - name: "Real-Time"
+        price_monthly: 5000
+        latency: "< 100ms"
+      - name: "Ultra-Low Latency"
+        price_monthly: 25000
+        latency: "< 1ms"
+    features:
+      - "Global equity coverage"
+      - "Fixed income pricing"
+      - "FX spot and forwards"
+      - "Derivatives pricing"
+      - "Corporate actions"
+      - "Reference data management"
+    common_issues:
+      - category: "Feed Quality"
+        issues:
+          - "Stale prices for illiquid instruments"
+          - "Missing tick data during exchange outage"
+          - "Corporate action adjustment not applied"
+      - category: "Connectivity"
+        issues:
+          - "WebSocket disconnection during market volatility"
+          - "API authentication token expiring mid-session"
+          - "Rate limiting affecting intraday strategies"
+      - category: "Coverage"
+        issues:
+          - "New listing not appearing in symbology"
+          - "OTC instrument pricing unavailable"
+          - "FX forward curve points missing"
+
+# =============================================================================
+# Section 3: Support Team Structure
+# =============================================================================
+support_team:
+  tiers:
+    - level: "L1"
+      name: "Tier 1 Trading Support"
+      headcount: 8
+      shift_coverage: "24x6"
+      responsibilities:
+        - "Initial ticket triage and categorization"
+        - "FIX session connectivity checks"
+        - "User access and authentication"
+        - "Basic platform navigation"
+        - "Status page monitoring"
+      escalation_threshold:
+        p1: "10 minutes"
+        p2: "30 minutes"
+        p3: "2 hours"
+        p4: "4 hours"
+      kpis:
+        first_response_target: "< 15 minutes"
+        resolution_rate: "55%"
+
+    - level: "L2"
+      name: "Tier 2 Technical Trading"
+      headcount: 4
+      shift_coverage: "16x6"
+      responsibilities:
+        - "FIX protocol debugging"
+        - "Order flow troubleshooting"
+        - "Risk calculation investigations"
+        - "Regulatory report validation"
+        - "Market data feed issues"
+      escalation_threshold:
+        p1: "30 minutes"
+        p2: "2 hours"
+      kpis:
+        resolution_rate: "75%"
+        escalation_rate: "< 25%"
+
+    - level: "L3"
+      name: "Engineering Escalation"
+      headcount: 2
+      shift_coverage: "On-call rotation"
+      responsibilities:
+        - "Trading system hotfixes"
+        - "Performance optimization"
+        - "Complex integration debugging"
+        - "Database-level investigations"
+        - "Disaster recovery coordination"
+      jira_project: "FCS"
+      kpis:
+        bug_fix_target: "< 2 business days"
+        customer_escalation_rate: "< 3%"
+
+    - level: "Manager"
+      name: "Support Management"
+      headcount: 1
+      responsibilities:
+        - "Global trading desk coordination"
+        - "Major incident management"
+        - "SLA compliance monitoring"
+        - "Vendor relationship management"
+        - "Regulatory inquiry support"
+
+# =============================================================================
+# Section 4: Case Types and SLAs
+# =============================================================================
+case_types:
+  - type: "Technical"
+    percentage: 50
+    subtypes:
+      - name: "Trading Connectivity"
+        percentage: 35
+        typical_products: ["TEE", "MDF"]
+      - name: "Execution Issues"
+        percentage: 25
+        typical_products: ["TEE"]
+      - name: "Risk Calculation"
+        percentage: 20
+        typical_products: ["RAP"]
+      - name: "Data Quality"
+        percentage: 20
+        typical_products: ["MDF", "RAP"]
+
+  - type: "Compliance & Reporting"
+    percentage: 25
+    subtypes:
+      - name: "Regulatory Submissions"
+        percentage: 45
+        typical_products: ["RRS"]
+      - name: "Audit Requests"
+        percentage: 30
+      - name: "Best Execution"
+        percentage: 25
+        typical_products: ["TEE", "RRS"]
+
+  - type: "Access & Configuration"
+    percentage: 15
+    subtypes:
+      - name: "User Provisioning"
+        percentage: 40
+      - name: "API Access"
+        percentage: 35
+      - name: "Entitlement Issues"
+        percentage: 25
+
+  - type: "Feature Request"
+    percentage: 7
+    subtypes:
+      - name: "New Venue"
+        percentage: 40
+      - name: "Report Enhancement"
+        percentage: 35
+      - name: "Algorithm Request"
+        percentage: 25
+
+  - type: "Bug Report"
+    percentage: 3
+    subtypes:
+      - name: "Calculation Error"
+        percentage: 50
+      - name: "UI/UX Bug"
+        percentage: 30
+      - name: "Data Bug"
+        percentage: 20
+
+slas:
+  - priority: "P1"
+    label: "Critical"
+    description: "Trading system down, unable to execute orders"
+    response_time: "5 minutes"
+    resolution_target: "1 hour"
+    percentage: 5
+    examples:
+      - "Complete trading system outage"
+      - "FIX session loss to major exchange"
+      - "Risk limits preventing all trading"
+
+  - priority: "P2"
+    label: "High"
+    description: "Major trading functionality impaired"
+    response_time: "15 minutes"
+    resolution_target: "4 hours"
+    percentage: 15
+    examples:
+      - "Order routing to single venue failed"
+      - "Real-time risk not updating"
+      - "Regulatory report submission blocked"
+
+  - priority: "P3"
+    label: "Medium"
+    description: "Feature degraded, workaround available"
+    response_time: "2 hours"
+    resolution_target: "24 hours"
+    percentage: 50
+    examples:
+      - "Delayed market data for non-critical instruments"
+      - "Historical reports not generating"
+      - "Single analytics dashboard slow"
+
+  - priority: "P4"
+    label: "Low"
+    description: "Minor issue or general inquiry"
+    response_time: "8 hours"
+    resolution_target: "72 hours"
+    percentage: 30
+    examples:
+      - "Documentation requests"
+      - "Feature questions"
+      - "Training inquiries"
+
+# =============================================================================
+# Section 5: Customer Segmentation (10 customers total)
+# =============================================================================
+customer_segments:
+  - segment: "Enterprise"
+    count: 2
+    employee_range: [5000, 100000]
+    industries:
+      - "Investment Bank"
+      - "Global Asset Manager"
+    products_used: ["TEE", "RAP", "RRS", "MDF"]
+    contract_value: "high"
+    annual_contract_value_range: [2000000, 10000000]
+    support_tier: "Enterprise"
+    contacts_per_account: 12
+    typical_case_volume: "high"
+    characteristics:
+      - "Dedicated support pod"
+      - "24x7 trading desk hotline"
+      - "Custom SLA terms"
+      - "Quarterly executive reviews"
+
+  - segment: "Mid-Market"
+    count: 4
+    employee_range: [100, 2000]
+    industries:
+      - "Hedge Fund"
+      - "Prop Trading Firm"
+      - "Family Office"
+      - "Regional Broker-Dealer"
+    products_used: ["TEE", "RAP", "MDF"]
+    contract_value: "medium"
+    annual_contract_value_range: [250000, 1000000]
+    support_tier: "Professional"
+    contacts_per_account: 5
+    typical_case_volume: "medium"
+    characteristics:
+      - "Standard support SLA"
+      - "Email and phone support"
+      - "Monthly performance reviews"
+
+  - segment: "SMB"
+    count: 4
+    employee_range: [10, 100]
+    industries:
+      - "RIA"
+      - "Small Hedge Fund"
+      - "Commodity Trading Advisor"
+      - "Prop Shop"
+    products_used: ["TEE", "MDF"]
+    contract_value: "low"
+    annual_contract_value_range: [50000, 200000]
+    support_tier: "Standard"
+    contacts_per_account: 2
+    typical_case_volume: "low"
+    characteristics:
+      - "Self-service portal"
+      - "Email-based support"
+      - "Cost-conscious"
+
+# =============================================================================
+# Section 6: Communication Patterns
+# =============================================================================
+communication:
+  email_templates:
+    - scenario: "Initial Response"
+      tone: "professional, urgent, finance-aware"
+      key_elements:
+        - "Acknowledge market-time sensitivity"
+        - "Confirm trading impact assessment"
+        - "Set immediate next steps"
+      example_opening: "Thank you for contacting FinCore Systems Trading Support."
+
+    - scenario: "Request for Information"
+      tone: "specific, technical, time-sensitive"
+      key_elements:
+        - "Request FIX logs or order IDs"
+        - "Specify required timeframes"
+        - "Provide secure upload link"
+      example_opening: "To investigate this trading issue, we need the following information..."
+
+    - scenario: "Resolution Notification"
+      tone: "clear, documented, compliance-ready"
+      key_elements:
+        - "Confirm trading capability restored"
+        - "Document root cause"
+        - "Provide audit trail reference"
+      example_opening: "Your trading issue has been resolved. Normal operations confirmed."
+
+    - scenario: "Escalation Notice"
+      tone: "urgent, transparent, executive-ready"
+      key_elements:
+        - "Explain trading impact"
+        - "Provide engineering escalation details"
+        - "Set hard timeline commitments"
+      example_opening: "This issue is being escalated to our Trading Systems engineering team."
+
+    - scenario: "Follow-up Check"
+      tone: "brief, proactive, verification-focused"
+      key_elements:
+        - "Verify trading stability"
+        - "Confirm order flow normal"
+        - "Offer optimization review"
+      example_opening: "We are following up on your recent trading support case."
+
+  language_patterns:
+    formal_terms:
+      - "Thank you for contacting FinCore Trading Support"
+      - "We understand the critical nature of trading operations"
+      - "Trading functionality has been verified"
+      - "We appreciate your patience during market hours"
+      - "Please confirm order flow is executing as expected"
+
+    technical_terms:
+      - "FIX session"
+      - "order acknowledgment"
+      - "execution report"
+      - "fill rate"
+      - "order book"
+      - "latency measurement"
+      - "VaR limit"
+      - "Greeks"
+      - "LEI"
+      - "UTI"
+
+    product_specific:
+      TEE:
+        - "order routing"
+        - "execution venue"
+        - "FIX message"
+        - "order state"
+        - "time-in-force"
+      RAP:
+        - "risk calculation"
+        - "VaR breach"
+        - "stress scenario"
+        - "position limit"
+        - "margin call"
+      RRS:
+        - "regulatory submission"
+        - "filing deadline"
+        - "validation error"
+        - "amendment"
+        - "trade report"
+      MDF:
+        - "market data feed"
+        - "tick data"
+        - "corporate action"
+        - "symbology"
+        - "pricing source"
+
+  customer_tone_patterns:
+    frustrated:
+      indicators:
+        - "We cannot trade until this is fixed"
+        - "This is costing us money every minute"
+        - "Our clients are asking questions"
+        - "Regulators are on the line"
+      response_approach: "Immediate priority, focus on trading restoration, engage trading desk manager"
+
+    technical:
+      indicators:
+        - "The FIX log shows tag 35=8..."
+        - "Latency on leg 2 is exceeding..."
+        - "The Greeks are not matching our model..."
+      response_approach: "Deep technical engagement, share debugging tools, offer screen sharing"
+
+    executive:
+      indicators:
+        - "I need to update my risk committee"
+        - "Our CRO is asking for status"
+        - "This needs to go to your CEO"
+      response_approach: "Executive summary, P&L impact focus, escalation to VP Support"
+
+# =============================================================================
+# Section 7: JIRA Escalation Patterns
+# =============================================================================
+jira:
+  project_key: "FCS"
+  project_name: "FinCore Systems Engineering Support"
+
+  issue_types:
+    - name: "Trading Bug"
+      percentage: 40
+      description: "Issue affecting trade execution"
+      typical_priority: ["Critical", "High"]
+
+    - name: "Support Escalation"
+      percentage: 30
+      description: "Customer issue requiring engineering"
+      typical_priority: ["High", "Critical"]
+
+    - name: "Performance Issue"
+      percentage: 20
+      description: "Latency or throughput degradation"
+      typical_priority: ["Critical", "High"]
+
+    - name: "Enhancement"
+      percentage: 10
+      description: "New feature or venue request"
+      typical_priority: ["Medium", "Low"]
+
+  components:
+    - name: "Trade Execution"
+      code: "TEE"
+      lead: "L3 Engineer"
+    - name: "Risk Analytics"
+      code: "RAP"
+      lead: "L3 Engineer"
+    - name: "Regulatory Reporting"
+      code: "RRS"
+      lead: "L3 Engineer"
+    - name: "Market Data"
+      code: "MDF"
+      lead: "L3 Engineer"
+    - name: "FIX Engine"
+      code: "FIX"
+      lead: "L3 Engineer"
+    - name: "Infrastructure"
+      code: "INFRA"
+      lead: "L3 Engineer"
+
+  priorities:
+    - name: "Critical"
+      description: "Trading halted, immediate action required"
+      response_time: "5 minutes"
+    - name: "High"
+      description: "Major trading impact"
+      response_time: "15 minutes"
+    - name: "Medium"
+      description: "Important but trading continues"
+      response_time: "4 hours"
+    - name: "Low"
+      description: "Minor issue or enhancement"
+      response_time: "1 business day"
+
+  escalation_criteria:
+    automatic:
+      - "Any FIX session loss during market hours"
+      - "Order execution failures"
+      - "Risk calculation unavailable"
+      - "Regulatory submission deadline at risk"
+      - "P1 not resolved in 1 hour"
+    manual:
+      - "Customer requests trading desk escalation"
+      - "L2 unable to restore connectivity"
+      - "Suspected data corruption"
+      - "Performance degradation during trading hours"
+
+  workflow:
+    statuses:
+      - "Open"
+      - "In Progress"
+      - "In Review"
+      - "UAT"
+      - "Pending Deployment"
+      - "Resolved"
+      - "Closed"
+    transitions:
+      - from: "Open"
+        to: "In Progress"
+        action: "Start Work"
+      - from: "In Progress"
+        to: "In Review"
+        action: "Submit for Review"
+      - from: "In Review"
+        to: "UAT"
+        action: "Approve for Testing"
+      - from: "UAT"
+        to: "Pending Deployment"
+        action: "UAT Approved"
+      - from: "Pending Deployment"
+        to: "Resolved"
+        action: "Deploy to Production"
+      - from: "Resolved"
+        to: "Closed"
+        action: "Verify and Close"
+
+  labels:
+    - "trading-impact"
+    - "fix-session"
+    - "regulatory-deadline"
+    - "market-hours"
+    - "performance-critical"
+    - "risk-breach"
+    - "hotfix-required"
+    - "client-escalation"

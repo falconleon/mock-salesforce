@@ -1,0 +1,633 @@
+# Acme Software Inc. - Vendor Profile
+# This profile drives all mock data generation for the pattern template.
+# Used by Layer 3 generators to create realistic demo data.
+
+# =============================================================================
+# Section 1: Company Information
+# =============================================================================
+company:
+  name: "Acme Software Inc."
+  founded: 2012
+  headquarters: "Austin, TX"
+  website: "acmesoftware.com"
+  industry: "Enterprise Software / SaaS"
+  employees: 450
+  annual_revenue: 85000000  # $85M ARR
+  tagline: "Streamline Your Workflow"
+  description: |
+    Acme Software is a mid-sized enterprise software company providing
+    project management, time tracking, and integration solutions to B2B
+    customers across multiple industries.
+
+# =============================================================================
+# Section 2: Products (4 products with detailed issue profiles)
+# =============================================================================
+products:
+  - name: "Acme Project Hub"
+    code: "APH"
+    type: "SaaS"
+    category: "Project Management"
+    version: "4.2.1"
+    tiers:
+      - name: "Starter"
+        price_monthly: 15
+        user_limit: 10
+      - name: "Professional"
+        price_monthly: 35
+        user_limit: 50
+      - name: "Enterprise"
+        price_monthly: 75
+        user_limit: null  # unlimited
+    features:
+      - "Task management with Kanban boards"
+      - "Gantt charts and timeline views"
+      - "Resource allocation and capacity planning"
+      - "Team collaboration with real-time comments"
+      - "Custom workflows and automations"
+      - "Reporting and dashboards"
+    common_issues:
+      - category: "Authentication"
+        issues:
+          - "SSO login failures after IdP certificate renewal"
+          - "SAML assertion timeout errors"
+          - "MFA token sync issues with Authenticator apps"
+      - category: "Performance"
+        issues:
+          - "Dashboard loading slowly with 500+ projects"
+          - "Gantt chart rendering timeout on large programs"
+          - "Search indexing delays after bulk imports"
+      - category: "Data Sync"
+        issues:
+          - "Conflicts when multiple users edit same task"
+          - "Mobile app changes not reflecting on web"
+          - "API webhook deliveries failing intermittently"
+      - category: "Integrations"
+        issues:
+          - "Slack notifications not sending"
+          - "Jira sync duplicating issues"
+          - "Calendar integration shows wrong timezone"
+
+  - name: "Acme Time Tracker"
+    code: "ATT"
+    type: "SaaS"
+    category: "Time & Resource Management"
+    version: "3.1.0"
+    tiers:
+      - name: "Basic"
+        price_monthly: 8
+        user_limit: 25
+      - name: "Business"
+        price_monthly: 18
+        user_limit: 100
+    features:
+      - "Automatic time capture from calendar"
+      - "Project-based time allocation"
+      - "Billable vs non-billable tracking"
+      - "Team utilization reports"
+      - "Overtime and PTO management"
+      - "Export to payroll systems"
+    common_issues:
+      - category: "Time Entry"
+        issues:
+          - "Timer not stopping when laptop sleeps"
+          - "Time entries disappearing after save"
+          - "Duplicate entries from browser refresh"
+      - category: "Reports"
+        issues:
+          - "Utilization percentages not matching manual calculation"
+          - "Report export truncating after 1000 rows"
+          - "PDF reports showing blank charts"
+      - category: "Integrations"
+        issues:
+          - "QuickBooks export failing with special characters"
+          - "Calendar auto-capture missing recurring events"
+          - "Project Hub link broken after project rename"
+
+  - name: "Acme Connect"
+    code: "ACN"
+    type: "iPaaS"
+    category: "Integration Platform"
+    version: "2.4.0"
+    tiers:
+      - name: "Standard"
+        price_monthly: 99
+        flow_limit: 10
+      - name: "Professional"
+        price_monthly: 299
+        flow_limit: 50
+      - name: "Enterprise"
+        price_monthly: 899
+        flow_limit: null
+    features:
+      - "Pre-built connectors for 150+ apps"
+      - "Visual flow builder"
+      - "Data transformation and mapping"
+      - "Error handling and retry logic"
+      - "Webhook triggers and schedulers"
+      - "API gateway and rate limiting"
+    common_issues:
+      - category: "Connectivity"
+        issues:
+          - "OAuth token refresh failing for Salesforce connector"
+          - "Connection timeout to on-premise systems"
+          - "API rate limits exceeded on HubSpot"
+      - category: "Data Mapping"
+        issues:
+          - "Field mapping losing configuration after update"
+          - "Date format conversion errors between systems"
+          - "Null values causing flow failures"
+      - category: "Execution"
+        issues:
+          - "Scheduled flows not triggering at configured time"
+          - "Flow stuck in 'Running' state"
+          - "Retry logic creating duplicate records"
+
+  - name: "Acme Analytics"
+    code: "AAN"
+    type: "SaaS"
+    category: "Business Intelligence"
+    version: "1.8.2"
+    tiers:
+      - name: "Team"
+        price_monthly: 49
+        user_limit: 10
+      - name: "Business"
+        price_monthly: 149
+        user_limit: 50
+    features:
+      - "Real-time dashboards"
+      - "Custom report builder"
+      - "Data warehouse connections"
+      - "Scheduled report delivery"
+      - "Embedded analytics"
+    common_issues:
+      - category: "Data"
+        issues:
+          - "Dashboard showing stale data after refresh"
+          - "Query timeout on large datasets"
+          - "Incorrect aggregation with multiple data sources"
+      - category: "Visualization"
+        issues:
+          - "Charts not rendering in Safari"
+          - "PDF export cutting off dashboard"
+          - "Drill-down not working on mobile"
+
+# =============================================================================
+# Section 3: Support Team Structure
+# =============================================================================
+support_team:
+  tiers:
+    - level: "L1"
+      name: "Tier 1 Support"
+      headcount: 8
+      shift_coverage: "24x5"  # Mon-Fri, follow-the-sun
+      responsibilities:
+        - "Initial ticket triage and categorization"
+        - "Common issue resolution from knowledge base"
+        - "Account access and password resets"
+        - "License and billing inquiries"
+        - "Basic product questions"
+      escalation_threshold:
+        p1: "30 minutes"
+        p2: "2 hours"
+        p3: "4 hours"
+        p4: "8 hours"
+      kpis:
+        first_response_target: "< 1 hour"
+        resolution_rate: "65%"
+
+    - level: "L2"
+      name: "Tier 2 Technical Support"
+      headcount: 4
+      shift_coverage: "16x5"
+      responsibilities:
+        - "Technical troubleshooting and diagnostics"
+        - "Configuration and setup issues"
+        - "Integration problems"
+        - "Performance investigations"
+        - "Data import/export issues"
+      escalation_threshold:
+        p1: "2 hours"
+        p2: "8 hours"
+      kpis:
+        resolution_rate: "85%"
+        escalation_rate: "< 15%"
+
+    - level: "L3"
+      name: "Engineering Escalation"
+      headcount: 2
+      shift_coverage: "On-call rotation"
+      responsibilities:
+        - "Bug fixes and hotpatches"
+        - "Complex integration debugging"
+        - "Root cause analysis"
+        - "Database-level investigations"
+        - "Customer-specific custom solutions"
+      jira_project: "ACME"
+      kpis:
+        bug_fix_target: "< 5 business days"
+        customer_escalation_rate: "< 3%"
+
+    - level: "Manager"
+      name: "Support Management"
+      headcount: 1
+      responsibilities:
+        - "Team scheduling and capacity"
+        - "Escalation handling"
+        - "Customer success coordination"
+        - "SLA compliance monitoring"
+        - "Process improvement"
+
+# =============================================================================
+# Section 4: Case Types and SLAs
+# =============================================================================
+case_types:
+  - type: "Technical"
+    percentage: 45  # Largest category
+    subtypes:
+      - name: "Performance"
+        percentage: 25
+        typical_products: ["APH", "AAN"]
+      - name: "Integration"
+        percentage: 30
+        typical_products: ["ACN"]
+      - name: "API"
+        percentage: 20
+        typical_products: ["ACN", "APH"]
+      - name: "Data Sync"
+        percentage: 25
+        typical_products: ["APH", "ATT"]
+
+  - type: "Account & Access"
+    percentage: 25
+    subtypes:
+      - name: "Login Issues"
+        percentage: 40
+      - name: "Permission Problems"
+        percentage: 30
+      - name: "SSO Configuration"
+        percentage: 20
+      - name: "License Management"
+        percentage: 10
+
+  - type: "Billing"
+    percentage: 15
+    subtypes:
+      - name: "Invoice Questions"
+        percentage: 40
+      - name: "Upgrade/Downgrade"
+        percentage: 35
+      - name: "Refund Requests"
+        percentage: 15
+      - name: "Payment Failures"
+        percentage: 10
+
+  - type: "Feature Request"
+    percentage: 10
+    subtypes:
+      - name: "New Functionality"
+        percentage: 60
+      - name: "Enhancement"
+        percentage: 40
+
+  - type: "Bug Report"
+    percentage: 5
+    subtypes:
+      - name: "UI/UX Bug"
+        percentage: 40
+      - name: "Functional Bug"
+        percentage: 45
+      - name: "Data Bug"
+        percentage: 15
+
+slas:
+  - priority: "P1"
+    label: "Critical"
+    description: "System down or data loss affecting production"
+    response_time: "1 hour"
+    resolution_target: "4 hours"
+    percentage: 5
+    examples:
+      - "Complete service outage"
+      - "Data corruption or loss"
+      - "Security breach"
+
+  - priority: "P2"
+    label: "High"
+    description: "Major feature broken, no workaround"
+    response_time: "4 hours"
+    resolution_target: "24 hours"
+    percentage: 15
+    examples:
+      - "Unable to create new projects"
+      - "Reporting completely broken"
+      - "All integrations failing"
+
+  - priority: "P3"
+    label: "Medium"
+    description: "Feature impaired, workaround available"
+    response_time: "8 hours"
+    resolution_target: "72 hours"
+    percentage: 50
+    examples:
+      - "Slow dashboard loading"
+      - "Single integration failing"
+      - "Export to specific format broken"
+
+  - priority: "P4"
+    label: "Low"
+    description: "Minor issue or general question"
+    response_time: "24 hours"
+    resolution_target: "1 week"
+    percentage: 30
+    examples:
+      - "Cosmetic UI issues"
+      - "Feature requests"
+      - "How-to questions"
+
+# =============================================================================
+# Section 5: Customer Segmentation (10 customers total)
+# =============================================================================
+customer_segments:
+  - segment: "Enterprise"
+    count: 2  # 2 customers
+    employee_range: [1000, 10000]
+    industries:
+      - "Finance"
+      - "Healthcare"
+    products_used: ["APH", "ATT", "ACN", "AAN"]  # Use all products
+    contract_value: "high"
+    annual_contract_value_range: [150000, 500000]
+    support_tier: "Enterprise"
+    contacts_per_account: 5
+    typical_case_volume: "high"
+    characteristics:
+      - "Dedicated account manager"
+      - "Quarterly business reviews"
+      - "Custom integrations"
+      - "SSO required"
+
+  - segment: "Mid-Market"
+    count: 4  # 4 customers
+    employee_range: [100, 1000]
+    industries:
+      - "Technology"
+      - "Manufacturing"
+      - "Retail"
+      - "Professional Services"
+    products_used: ["APH", "ATT"]  # Core products
+    contract_value: "medium"
+    annual_contract_value_range: [25000, 100000]
+    support_tier: "Professional"
+    contacts_per_account: 3
+    typical_case_volume: "medium"
+    characteristics:
+      - "Self-service preferred"
+      - "Standard integrations"
+      - "Email-based support"
+
+  - segment: "SMB"
+    count: 4  # 4 customers
+    employee_range: [20, 100]
+    industries:
+      - "Startup"
+      - "Consulting"
+      - "Marketing Agency"
+      - "Non-profit"
+    products_used: ["APH"]  # Entry product
+    contract_value: "low"
+    annual_contract_value_range: [2000, 15000]
+    support_tier: "Standard"
+    contacts_per_account: 2
+    typical_case_volume: "low"
+    characteristics:
+      - "Cost-conscious"
+      - "Quick issue resolution preferred"
+      - "Limited technical resources"
+
+# =============================================================================
+# Section 6: Communication Patterns
+# =============================================================================
+communication:
+  email_templates:
+    - scenario: "Initial Response"
+      tone: "professional, empathetic"
+      key_elements:
+        - "Thank customer for contacting"
+        - "Acknowledge the issue"
+        - "Set expectations for next steps"
+      example_opening: "Thank you for reaching out to Acme Support."
+
+    - scenario: "Request for Information"
+      tone: "helpful, specific"
+      key_elements:
+        - "Explain what information is needed"
+        - "Provide steps to gather info"
+        - "Offer alternative ways to provide"
+      example_opening: "To help us investigate this further, could you please provide..."
+
+    - scenario: "Resolution Notification"
+      tone: "positive, clear"
+      key_elements:
+        - "Confirm issue is resolved"
+        - "Explain what was done"
+        - "Provide prevention tips"
+      example_opening: "Great news! We've resolved the issue you reported."
+
+    - scenario: "Escalation Notice"
+      tone: "reassuring, transparent"
+      key_elements:
+        - "Explain why escalating"
+        - "Set new expectations"
+        - "Provide escalation reference"
+      example_opening: "We're escalating this to our engineering team for deeper investigation."
+
+    - scenario: "Follow-up Check"
+      tone: "caring, brief"
+      key_elements:
+        - "Check if issue persists"
+        - "Offer additional help"
+        - "Request feedback"
+      example_opening: "We wanted to follow up on your recent support case."
+
+  language_patterns:
+    formal_terms:
+      - "Thank you for contacting Acme Support"
+      - "We apologize for any inconvenience this may have caused"
+      - "Please don't hesitate to reach out if you need further assistance"
+      - "We appreciate your patience while we investigated this issue"
+      - "Your feedback helps us improve our products"
+
+    technical_terms:
+      - "project workspace"
+      - "sync interval"
+      - "API endpoint"
+      - "OAuth token"
+      - "webhook payload"
+      - "flow execution"
+      - "data connector"
+      - "SSO configuration"
+      - "SAML assertion"
+      - "rate limiting"
+
+    product_specific:
+      APH:
+        - "Kanban board"
+        - "Gantt view"
+        - "task assignment"
+        - "project timeline"
+        - "resource allocation"
+      ATT:
+        - "time entry"
+        - "billable hours"
+        - "utilization report"
+        - "timesheet"
+        - "timer widget"
+      ACN:
+        - "integration flow"
+        - "connector"
+        - "data mapping"
+        - "trigger"
+        - "transformation"
+      AAN:
+        - "dashboard"
+        - "data source"
+        - "visualization"
+        - "report schedule"
+        - "drill-down"
+
+  customer_tone_patterns:
+    frustrated:
+      indicators:
+        - "This has been ongoing for days"
+        - "I've already tried everything"
+        - "This is unacceptable"
+        - "We're losing business"
+      response_approach: "Acknowledge frustration, prioritize resolution, escalate if needed"
+
+    technical:
+      indicators:
+        - "I checked the API response"
+        - "The error log shows..."
+        - "I can reproduce with these steps"
+      response_approach: "Match technical level, provide detailed explanations"
+
+    executive:
+      indicators:
+        - "I need this resolved ASAP"
+        - "What's your SLA?"
+        - "Please escalate to management"
+      response_approach: "Professional, concise, focus on impact and timeline"
+
+# =============================================================================
+# Section 7: JIRA Escalation Patterns
+# =============================================================================
+jira:
+  project_key: "ACME"
+  project_name: "Acme Engineering Support"
+
+  issue_types:
+    - name: "Bug"
+      percentage: 50
+      description: "Software defect requiring code fix"
+      typical_priority: ["High", "Medium"]
+
+    - name: "Support Escalation"
+      percentage: 30
+      description: "Customer issue requiring engineering investigation"
+      typical_priority: ["High", "Critical"]
+
+    - name: "Performance Issue"
+      percentage: 15
+      description: "System performance degradation"
+      typical_priority: ["Critical", "High"]
+
+    - name: "Integration Request"
+      percentage: 5
+      description: "New integration or connector enhancement"
+      typical_priority: ["Medium", "Low"]
+
+  components:
+    - name: "Project Hub"
+      code: "APH"
+      lead: "L3 Engineer"
+    - name: "Time Tracker"
+      code: "ATT"
+      lead: "L3 Engineer"
+    - name: "Connect Platform"
+      code: "ACN"
+      lead: "L3 Engineer"
+    - name: "Analytics"
+      code: "AAN"
+      lead: "L3 Engineer"
+    - name: "API"
+      code: "API"
+      lead: "L3 Engineer"
+    - name: "SSO/Auth"
+      code: "AUTH"
+      lead: "L3 Engineer"
+    - name: "Infrastructure"
+      code: "INFRA"
+      lead: "L3 Engineer"
+
+  priorities:
+    - name: "Critical"
+      description: "Production down, immediate action required"
+      response_time: "1 hour"
+    - name: "High"
+      description: "Major functionality impaired"
+      response_time: "4 hours"
+    - name: "Medium"
+      description: "Important but not blocking"
+      response_time: "1 business day"
+    - name: "Low"
+      description: "Minor issue or improvement"
+      response_time: "1 week"
+
+  escalation_criteria:
+    automatic:
+      - "Customer impact > 100 users"
+      - "Data loss or corruption"
+      - "Security vulnerability"
+      - "P1 not resolved in 4 hours"
+      - "Same issue reported by 3+ customers"
+    manual:
+      - "Customer requests engineering review"
+      - "L2 unable to reproduce or diagnose"
+      - "Suspected product bug"
+      - "Performance degradation confirmed"
+
+  workflow:
+    statuses:
+      - "Open"
+      - "In Progress"
+      - "In Review"
+      - "Pending Deployment"
+      - "Resolved"
+      - "Closed"
+    transitions:
+      - from: "Open"
+        to: "In Progress"
+        action: "Start Work"
+      - from: "In Progress"
+        to: "In Review"
+        action: "Submit for Review"
+      - from: "In Review"
+        to: "Pending Deployment"
+        action: "Approve"
+      - from: "Pending Deployment"
+        to: "Resolved"
+        action: "Deploy to Production"
+      - from: "Resolved"
+        to: "Closed"
+        action: "Verify and Close"
+
+  labels:
+    - "customer-escalation"
+    - "production-issue"
+    - "data-integrity"
+    - "performance"
+    - "security"
+    - "integration"
+    - "regression"
+    - "hotfix-required"
