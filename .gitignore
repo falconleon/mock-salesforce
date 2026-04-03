@@ -3,6 +3,11 @@
 .thrum.*.json
 scripts/thrum-startup.sh
 
+# Air hot reload temp
+tmp/
+
+.playwright-cli
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db

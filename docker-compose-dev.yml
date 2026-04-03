@@ -1,0 +1,61 @@
+# =============================================================================
+# Mock Salesforce Dev Environment — Hot Reload with Docker Compose Watch
+# =============================================================================
+#
+# USAGE:
+#   Start with hot reload:
+#     docker compose -f docker-compose-dev.yml watch
+#
+#   Stop:
+#     docker compose -f docker-compose-dev.yml down
+#
+# HOW IT WORKS:
+#   1. Developer edits a .go, .html, .css, or .json file
+#   2. Docker Compose Watch syncs the change into the container
+#   3. Air detects the synced change and rebuilds the binary
+#   4. Developer refreshes browser at http://sf-mock.mock-salesforce.orb.local:8085
+#
+# =============================================================================
+
+services:
+  sf-mock:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - "8085:8085"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8085/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    develop:
+      watch:
+        # Go source — sync and let air rebuild
+        - action: sync
+          path: ./cmd
+          target: /app/cmd
+          ignore:
+            - "**/*_test.go"
+        - action: sync
+          path: ./internal
+          target: /app/internal
+          ignore:
+            - "**/*_test.go"
+        # Seed data changes
+        - action: sync
+          path: ./testdata
+          target: /app/testdata
+        # Air config
+        - action: sync+restart
+          path: ./.air.toml
+          target: /app/.air.toml
+        # Dependency changes — full rebuild
+        - action: rebuild
+          path: ./go.mod
+        - action: rebuild
+          path: ./go.sum
