@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "mock_salesforce",
+  "project_id": "73d2cb2a-6625-4906-9091-ca01d74699c6"
+}
