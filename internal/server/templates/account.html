@@ -1,0 +1,47 @@
+{{template "layout" .}}
+{{define "content"}}
+<div class="breadcrumb">
+    <a href="{{basePath}}/lightning/o/Case/list">Cases</a> &gt;
+    <a href="{{basePath}}/lightning/o/Account/list">Accounts</a> &gt;
+    <span>{{fieldStr .Account "Name"}}</span>
+</div>
+<div class="record-page">
+    <div class="record-header">
+        <h1>{{fieldStr .Account "Name"}}</h1>
+    </div>
+    <div class="card">
+        <h3>Account Details</h3>
+        <dl class="field-list">
+            <dt>Industry</dt>
+            <dd>{{fieldStr .Account "Industry"}}</dd>
+            <dt>Type</dt>
+            <dd>{{fieldStr .Account "Type"}}</dd>
+            <dt>Phone</dt>
+            <dd>{{fieldStr .Account "Phone"}}</dd>
+            <dt>Website</dt>
+            <dd>{{fieldStr .Account "Website"}}</dd>
+        </dl>
+    </div>
+
+    {{if .Cases}}
+    <div class="card" style="margin-top: 1rem;">
+        <h3>Related Cases ({{len .Cases}})</h3>
+        <table class="sf-table">
+            <thead>
+                <tr><th>Case Number</th><th>Subject</th><th>Status</th><th>Priority</th></tr>
+            </thead>
+            <tbody>
+                {{range .Cases}}
+                <tr class="sf-row" onclick="window.location='{{basePath}}/lightning/r/Case/{{fieldStr . "Id"}}/view'">
+                    <td class="case-number"><a href="{{basePath}}/lightning/r/Case/{{fieldStr . "Id"}}/view">{{fieldStr . "CaseNumber"}}</a></td>
+                    <td>{{fieldStr . "Subject"}}</td>
+                    <td><span class="badge {{fieldStr . "Status" | statusClass}}">{{fieldStr . "Status"}}</span></td>
+                    <td><span class="badge {{fieldStr . "Priority" | priorityClass}}">{{fieldStr . "Priority"}}</span></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{end}}
+</div>
+{{end}}

@@ -1,0 +1,84 @@
+{{template "layout" .}}
+{{define "content"}}
+{{$case := .Case}}
+<div class="breadcrumb">
+    <a href="{{basePath}}/lightning/o/Case/list">Cases</a> &gt;
+    <span>{{fieldStr $case "CaseNumber"}}</span>
+</div>
+<div class="record-page">
+    <div class="record-header">
+        <h1>{{fieldStr $case "Subject"}}</h1>
+        <div class="record-meta">
+            <span class="case-number-large">{{fieldStr $case "CaseNumber"}}</span>
+            <span class="badge {{fieldStr $case "Status" | statusClass}}">{{fieldStr $case "Status"}}</span>
+            <span class="badge {{fieldStr $case "Priority" | priorityClass}}">{{fieldStr $case "Priority"}}</span>
+        </div>
+    </div>
+
+    <div class="record-grid">
+        <div class="record-main">
+            <div class="card">
+                <h3>Description</h3>
+                <div class="description">{{fieldStr $case "Description"}}</div>
+            </div>
+
+            {{if .Emails}}
+            <div class="card">
+                <h3>Email Messages ({{len .Emails}})</h3>
+                {{range .Emails}}
+                <div class="email-item">
+                    <div class="email-header">
+                        <strong>{{fieldStr . "FromAddress"}}</strong> → {{fieldStr . "ToAddress"}}
+                        <span class="email-date">{{fieldStr . "MessageDate"}}</span>
+                    </div>
+                    <div class="email-subject">{{fieldStr . "Subject"}}</div>
+                    <div class="email-body">{{fieldStr . "TextBody"}}</div>
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+
+            {{if .Comments}}
+            <div class="card">
+                <h3>Comments ({{len .Comments}})</h3>
+                {{range .Comments}}
+                <div class="comment-item">
+                    <div class="comment-header">
+                        <strong>{{fieldStr . "CreatedBy"}}</strong>
+                        <span class="comment-date">{{fieldStr . "CreatedDate"}}</span>
+                    </div>
+                    <div class="comment-body">{{fieldStr . "CommentBody"}}</div>
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+
+        <div class="record-sidebar">
+            <div class="card">
+                <h3>Case Details</h3>
+                <dl class="field-list">
+                    <dt>Status</dt>
+                    <dd><span class="badge {{fieldStr $case "Status" | statusClass}}">{{fieldStr $case "Status"}}</span></dd>
+                    <dt>Priority</dt>
+                    <dd><span class="badge {{fieldStr $case "Priority" | priorityClass}}">{{fieldStr $case "Priority"}}</span></dd>
+                    <dt>Account</dt>
+                    <dd>{{if index $case "_Account"}}<a href="{{basePath}}/lightning/r/Account/{{fieldStr (index $case "_Account") "Id"}}/view">{{fieldStr (index $case "_Account") "Name"}}</a>{{end}}</dd>
+                    <dt>Contact</dt>
+                    <dd>{{if index $case "_Contact"}}{{fieldStr (index $case "_Contact") "FirstName"}} {{fieldStr (index $case "_Contact") "LastName"}}{{end}}</dd>
+                    <dt>Product</dt>
+                    <dd>{{fieldStr $case "Product__c"}}</dd>
+                    <dt>Created</dt>
+                    <dd>{{fieldStr $case "CreatedDate"}}</dd>
+                    <dt>Escalated</dt>
+                    <dd>{{if index $case "IsEscalated"}}Yes{{else}}No{{end}}</dd>
+                    {{with fieldStr $case "LinkedJiraIssue__c"}}
+                    <dt>Linked Jira Issue</dt>
+                    <dd><a href="/jira/ui/issue/{{.}}" target="_blank" class="link">{{.}}</a></dd>
+                    {{end}}
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}

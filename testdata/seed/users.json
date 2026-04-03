@@ -1,0 +1,98 @@
+[
+  {
+    "Id": "0053t00000XyZAbAAV",
+    "Username": "maria.garcia@falcon.local",
+    "FirstName": "Maria",
+    "LastName": "Garcia",
+    "Name": "Maria Garcia",
+    "Email": "maria.garcia@falcon.local",
+    "Title": "Senior Support Engineer",
+    "Department": "Customer Support",
+    "IsActive": true,
+    "CreatedDate": "2022-06-15T09:00:00Z"
+  },
+  {
+    "Id": "0053t00000AbCdEAAV",
+    "Username": "james.wilson@falcon.local",
+    "FirstName": "James",
+    "LastName": "Wilson",
+    "Name": "James Wilson",
+    "Email": "james.wilson@falcon.local",
+    "Title": "Support Engineer",
+    "Department": "Customer Support",
+    "IsActive": true,
+    "CreatedDate": "2022-08-20T10:30:00Z"
+  },
+  {
+    "Id": "0053t00000LmNoPAAV",
+    "Username": "sarah.chen@falcon.local",
+    "FirstName": "Sarah",
+    "LastName": "Chen",
+    "Name": "Sarah Chen",
+    "Email": "sarah.chen@falcon.local",
+    "Title": "Principal Engineer",
+    "Department": "Engineering",
+    "IsActive": true,
+    "CreatedDate": "2021-03-10T08:00:00Z"
+  },
+  {
+    "Id": "0053t00000QrStUAAV",
+    "Username": "michael.brown@falcon.local",
+    "FirstName": "Michael",
+    "LastName": "Brown",
+    "Name": "Michael Brown",
+    "Email": "michael.brown@falcon.local",
+    "Title": "Support Manager",
+    "Department": "Customer Support",
+    "IsActive": true,
+    "CreatedDate": "2021-01-05T09:00:00Z"
+  },
+  {
+    "Id": "0053t00000VwXyZAAV",
+    "Username": "emily.johnson@falcon.local",
+    "FirstName": "Emily",
+    "LastName": "Johnson",
+    "Name": "Emily Johnson",
+    "Email": "emily.johnson@falcon.local",
+    "Title": "Technical Account Manager",
+    "Department": "Customer Success",
+    "IsActive": true,
+    "CreatedDate": "2022-02-14T11:00:00Z"
+  },
+  {
+    "Id": "0053t00000AaBbCAAV",
+    "Username": "david.kim@falcon.local",
+    "FirstName": "David",
+    "LastName": "Kim",
+    "Name": "David Kim",
+    "Email": "david.kim@falcon.local",
+    "Title": "Support Engineer",
+    "Department": "Customer Support",
+    "IsActive": true,
+    "CreatedDate": "2023-04-01T09:30:00Z"
+  },
+  {
+    "Id": "0053t00000DdEeFAAV",
+    "Username": "lisa.martinez@falcon.local",
+    "FirstName": "Lisa",
+    "LastName": "Martinez",
+    "Name": "Lisa Martinez",
+    "Email": "lisa.martinez@falcon.local",
+    "Title": "Senior Support Engineer",
+    "Department": "Customer Support",
+    "IsActive": true,
+    "CreatedDate": "2022-09-12T10:00:00Z"
+  },
+  {
+    "Id": "0053t00000GgHhIAAV",
+    "Username": "alex.patel@falcon.local",
+    "FirstName": "Alex",
+    "LastName": "Patel",
+    "Name": "Alex Patel",
+    "Email": "alex.patel@falcon.local",
+    "Title": "Staff Engineer",
+    "Department": "Engineering",
+    "IsActive": true,
+    "CreatedDate": "2021-07-20T08:30:00Z"
+  }
+]

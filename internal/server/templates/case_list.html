@@ -1,0 +1,31 @@
+{{template "layout" .}}
+{{define "content"}}
+<div class="page-header">
+    <h1>Cases</h1>
+    <span class="count-badge">{{.Total}} items</span>
+</div>
+<table class="sf-table">
+    <thead>
+        <tr>
+            <th>Case Number</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Account</th>
+            <th>Contact</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Cases}}
+        <tr class="sf-row" onclick="window.location='{{basePath}}/lightning/r/Case/{{fieldStr . "Id"}}/view'">
+            <td class="case-number"><a href="{{basePath}}/lightning/r/Case/{{fieldStr . "Id"}}/view">{{fieldStr . "CaseNumber"}}</a></td>
+            <td class="case-subject">{{fieldStr . "Subject"}}</td>
+            <td><span class="badge {{fieldStr . "Status" | statusClass}}">{{fieldStr . "Status"}}</span></td>
+            <td><span class="badge {{fieldStr . "Priority" | priorityClass}}">{{fieldStr . "Priority"}}</span></td>
+            <td>{{if index . "_AccountName"}}<a href="{{basePath}}/lightning/r/Account/{{fieldStr . "AccountId"}}/view">{{index . "_AccountName"}}</a>{{end}}</td>
+            <td>{{if index . "_ContactName"}}{{index . "_ContactName"}}{{end}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

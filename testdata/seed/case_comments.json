@@ -1,0 +1,130 @@
+[
+  {
+    "Id": "00a3t00001AbCdEAAV",
+    "ParentId": "5003t00002AbCdEAAV",
+    "CommentBody": "Initial triage: Customer reports 50+ users affected. Error message indicates session validation failure. Escalating to Engineering for investigation.",
+    "CreatedById": "0053t00000XyZAbAAV",
+    "CreatedDate": "2024-01-20T08:45:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001FgHiJAAV",
+    "ParentId": "5003t00002AbCdEAAV",
+    "CommentBody": "Engineering confirmed: Issue related to v2.5.1 SAML token validation change. Emergency patch being prepared.",
+    "CreatedById": "0053t00000XyZAbAAV",
+    "CreatedDate": "2024-01-20T10:30:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001KlMnOAAV",
+    "ParentId": "5003t00002AbCdEAAV",
+    "CommentBody": "Root cause identified: Session token validation was incorrectly configured for SAML assertions with custom attributes. Fix deployed to staging environment.",
+    "CreatedById": "0053t00000LmNoPAAV",
+    "CreatedDate": "2024-01-20T11:45:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001PqRsTAAV",
+    "ParentId": "5003t00002AbCdEAAV",
+    "CommentBody": "Patch v2.5.2 deployed to production. Monitoring for any additional issues. Customer confirmed resolution.",
+    "CreatedById": "0053t00000XyZAbAAV",
+    "CreatedDate": "2024-01-20T14:15:00Z",
+    "IsPublished": true
+  },
+  {
+    "Id": "00a3t00001UvWxYAAV",
+    "ParentId": "5003t00002XyZAbAAV",
+    "CommentBody": "Feature request logged. PDF export is on Q2 roadmap (v3.0). Customer added to notification list.",
+    "CreatedById": "0053t00000AbCdEAAV",
+    "CreatedDate": "2024-01-15T15:45:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001ZaBcDAAV",
+    "ParentId": "5003t00002XyZAbAAV",
+    "CommentBody": "Customer expressed interest in beta testing. Added to beta program waitlist. Closing case as feature request has been acknowledged.",
+    "CreatedById": "0053t00000AbCdEAAV",
+    "CreatedDate": "2024-01-22T16:30:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001EfGhIAAV",
+    "ParentId": "5003t00002CdEfGAAV",
+    "CommentBody": "P0 ESCALATION: Healthcare customer with HIPAA requirements. Integration failure affecting patient data availability. Engaging Principal Engineer and healthcare team immediately.",
+    "CreatedById": "0053t00000QrStUAAV",
+    "CreatedDate": "2024-01-22T07:15:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001JkLmNAAV",
+    "ParentId": "5003t00002CdEfGAAV",
+    "CommentBody": "Initial analysis: Connection timeouts correlate with certificate rotation on 2024-01-19. Investigating TLS certificate chain compatibility with Epic systems.",
+    "CreatedById": "0053t00000LmNoPAAV",
+    "CreatedDate": "2024-01-22T08:00:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001OpQrSAAV",
+    "ParentId": "5003t00002CdEfGAAV",
+    "CommentBody": "Confirmed: Certificate rotation introduced intermediate CA not recognized by Epic firewall. Working with Epic support to add CA to their trust store.",
+    "CreatedById": "0053t00000GgHhIAAV",
+    "CreatedDate": "2024-01-22T10:30:00Z",
+    "IsPublished": true
+  },
+  {
+    "Id": "00a3t00001TuVwXAAV",
+    "ParentId": "5003t00002HiJkLAAV",
+    "CommentBody": "Performance issue reported. Initial review shows report queries taking 5+ minutes vs expected 30 seconds. Checking database query execution plans.",
+    "CreatedById": "0053t00000DdEeFAAV",
+    "CreatedDate": "2024-01-18T12:00:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001YzAbCAAV",
+    "ParentId": "5003t00002HiJkLAAV",
+    "CommentBody": "Database analysis: Missing index on report_data.created_at column causing full table scans. Creating index and monitoring performance improvement.",
+    "CreatedById": "0053t00000DdEeFAAV",
+    "CreatedDate": "2024-01-19T09:15:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001DeFgHAAV",
+    "ParentId": "5003t00002MnOpQAAV",
+    "CommentBody": "New case: SSO configuration issue with Azure AD. Customer seeing AADSTS50011 error (Reply URL mismatch). Will review SAML configuration.",
+    "CreatedById": "0053t00000AaBbCAAV",
+    "CreatedDate": "2024-01-25T09:15:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001IjKlMAAV",
+    "ParentId": "5003t00002RsTuVAAV",
+    "CommentBody": "License discrepancy confirmed. Order ORD-2024-0125 shows 50 licenses, but provisioning only completed 30. Escalating to License Operations team.",
+    "CreatedById": "0053t00000VwXyZAAV",
+    "CreatedDate": "2024-01-19T13:30:00Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001NoPqRAAV",
+    "ParentId": "5003t00002RsTuVAAV",
+    "CommentBody": "License Operations resolved: Remaining 20 licenses were held for compliance review. Now activated. Customer confirmed all 50 licenses visible.",
+    "CreatedById": "0053t00000VwXyZAAV",
+    "CreatedDate": "2024-01-20T09:45:00Z",
+    "IsPublished": true
+  },
+  {
+    "Id": "00a3t00001DeGr01AAV",
+    "ParentId": "5003t00002DeGrAAV",
+    "CommentBody": "ESKALATION P1 — EMEA-Kunde TechCorp GmbH meldet vollständigen SSO-Ausfall für ca. 200 Benutzer in München. Ursache: Tokenvalidierungsfehler nach Plattform-Update 4.2.1 (AADSTS70011). Engineering-Team informiert, Notfall-Rollback in Vorbereitung. Zuständiger Engineer: Thomas Reiter.",
+    "CreatedById": "0053t00000XyZAbAAV",
+    "CreatedDate": "2024-01-20T09:05:00.000Z",
+    "IsPublished": false
+  },
+  {
+    "Id": "00a3t00001DeGr02AAV",
+    "ParentId": "5003t00002DeGrAAV",
+    "CommentBody": "Root cause confirmed: Version 4.2.1 introduced stricter OAuth scope validation incompatible with certain Azure AD tenant configurations (scope parameter format change). Configuration rollback deployed at 13:40 UTC. SSO restored for all affected users. Incident report to follow within 24h. Permanent fix targeted for version 4.2.2.",
+    "CreatedById": "0053t00000XyZAbAAV",
+    "CreatedDate": "2024-01-20T13:50:00.000Z",
+    "IsPublished": true
+  }
+]
