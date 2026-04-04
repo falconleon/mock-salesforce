@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -97,7 +98,11 @@ func Auth(logger zerolog.Logger, sessionSecret string) func(http.Handler) http.H
 
 			// Auth failed
 			if isHTMLRequest(r) {
-				http.Redirect(w, r, "/", http.StatusFound)
+				redirectURL := "/"
+				if fr := ExtractFalconReturn(r); fr != "" {
+					redirectURL = "/?falcon_return=" + url.QueryEscape(fr)
+				}
+				http.Redirect(w, r, redirectURL, http.StatusFound)
 				return
 			}
 			writeAuthError(w, logger, "Session expired or invalid")
@@ -181,15 +186,25 @@ func LoginHandler(users map[string]string, sessionSecret, basePath string) http.
 		}
 		email := r.FormValue("email")
 		password := r.FormValue("password")
+		falconReturn := ValidateFalconReturn(r.FormValue(falconReturnParam))
 
 		// Validate against multi-user store
 		expected, ok := users[email]
 		if !ok || subtle.ConstantTimeCompare([]byte(expected), []byte(password)) != 1 {
-			http.Redirect(w, r, basePath+"/?error=invalid", http.StatusFound)
+			redirectURL := basePath + "/?error=invalid"
+			if falconReturn != "" {
+				redirectURL += "&falcon_return=" + url.QueryEscape(falconReturn)
+			}
+			http.Redirect(w, r, redirectURL, http.StatusFound)
 			return
 		}
 
 		SetSessionCookie(w, email, sessionSecret)
+
+		// Store falcon_return in cookie if present
+		if falconReturn != "" {
+			SetFalconReturnCookie(w, falconReturn)
+		}
 
 		// Redirect to case list
 		http.Redirect(w, r, basePath+"/lightning/o/Case/list", http.StatusFound)

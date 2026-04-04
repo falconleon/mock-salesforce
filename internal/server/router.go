@@ -30,19 +30,31 @@ func (s *Server) setupRoutes() http.Handler {
 	// Root handler: login page when multi-user, redirect when single-user
 	loginTpl := template.Must(template.ParseFS(templateFS, "templates/login.html"))
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		// Capture falcon_return from query param
+		falconReturn := middleware.ExtractFalconReturn(r)
+
 		if hasMultiUser {
 			// Check if already authenticated via session cookie
 			if _, ok := middleware.ValidateSession(r, s.config.SessionSecret); ok {
+				// If authenticated and falcon_return present, store it in cookie
+				if falconReturn != "" {
+					middleware.SetFalconReturnCookie(w, falconReturn)
+				}
 				http.Redirect(w, r, basePath+"/lightning/o/Case/list", http.StatusFound)
 				return
 			}
 			// Show login form
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			loginTpl.ExecuteTemplate(w, "login", map[string]any{
-				"BasePath": basePath,
-				"Error":    r.URL.Query().Get("error") != "",
+				"BasePath":     basePath,
+				"Error":        r.URL.Query().Get("error") != "",
+				"FalconReturn": falconReturn,
 			})
 			return
+		}
+		// Single-user mode: store falcon_return if present
+		if falconReturn != "" {
+			middleware.SetFalconReturnCookie(w, falconReturn)
 		}
 		http.Redirect(w, r, basePath+"/lightning/o/Case/list", http.StatusFound)
 	})
@@ -96,6 +108,9 @@ func (s *Server) setupRoutes() http.Handler {
 
 	// Apply middleware chain
 	var handler http.Handler = mux
+
+	// Capture falcon_return query param on any request
+	handler = middleware.CaptureFalconReturn()(handler)
 
 	// Logging middleware (always enabled)
 	handler = middleware.Logging(s.logger)(handler)

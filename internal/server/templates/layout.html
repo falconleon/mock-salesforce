@@ -18,11 +18,28 @@
                 <a href="{{basePath}}/lightning/o/Case/list">Cases</a>
                 <a href="{{basePath}}/lightning/o/Account/list">Accounts</a>
             </nav>
+            <a id="falcon-return-btn" class="falcon-return-btn" style="display:none" href="#">
+                <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><path d="M10.707 3.293a1 1 0 00-1.414 0l-6 6a1 1 0 000 1.414l6 6a1 1 0 001.414-1.414L6.414 11H17a1 1 0 100-2H6.414l4.293-4.293a1 1 0 000-1.414z"/></svg>
+                Back to FalconMode
+            </a>
         </div>
     </header>
     <main class="main">
         {{template "content" .}}
     </main>
+    <script>
+    (function() {
+        var m = document.cookie.match(/(?:^|;\s*)falcon_return=([^;]+)/);
+        if (!m) return;
+        var url = decodeURIComponent(m[1]);
+        var btn = document.getElementById('falcon-return-btn');
+        btn.href = url;
+        btn.style.display = '';
+        btn.addEventListener('click', function() {
+            document.cookie = 'falcon_return=; path=/; max-age=0';
+        });
+    })();
+    </script>
 </body>
 </html>
 {{end}}
