@@ -53,20 +53,9 @@ func Auth(logger zerolog.Logger, sessionSecret string) func(http.Handler) http.H
 				next.ServeHTTP(w, r)
 				return
 			}
-			// Admin paths require Bearer token (not session cookie)
+			// Admin paths are unauthenticated (internal use by demo controller)
 			if strings.HasPrefix(path, "/admin/") {
-				authHeader := r.Header.Get("Authorization")
-				if strings.HasPrefix(authHeader, "Bearer ") {
-					token := strings.TrimPrefix(authHeader, "Bearer ")
-					mu.RLock()
-					valid := mockValidTokens[token]
-					mu.RUnlock()
-					if valid {
-						next.ServeHTTP(w, r)
-						return
-					}
-				}
-				writeAuthError(w, logger, "Admin access requires valid Bearer token")
+				next.ServeHTTP(w, r)
 				return
 			}
 			// Skip auth for static assets
