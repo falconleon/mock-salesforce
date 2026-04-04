@@ -95,6 +95,9 @@ func (h *OAuthHandler) HandleToken(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(instanceURL, ":") {
 		instanceURL = "http://localhost" + instanceURL
 	}
+	if h.config.BasePath != "" {
+		instanceURL = strings.TrimRight(instanceURL, "/") + h.config.BasePath
+	}
 
 	// Generate signature (mock implementation)
 	signature := h.generateSignature(accessToken, issuedAt)
