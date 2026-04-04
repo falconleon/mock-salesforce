@@ -123,5 +123,12 @@ func (s *Server) setupRoutes() http.Handler {
 		handler = middleware.Auth(s.logger, s.config.SessionSecret)(handler)
 	}
 
+	// Strip BASE_PATH prefix so the mux and middleware see unprefixed paths.
+	// When deployed behind a reverse proxy at e.g. /mock/salesforce, the proxy
+	// forwards the full path; StripPrefix removes the prefix before routing.
+	if basePath != "" {
+		handler = http.StripPrefix(basePath, handler)
+	}
+
 	return handler
 }
