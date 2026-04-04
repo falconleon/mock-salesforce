@@ -37,6 +37,7 @@ func main() {
 	authEnabled := flag.Bool("auth", true, "Enable OAuth token validation")
 	dbPath := flag.String("db-path", "", "Path to SQLite database (empty for in-memory)")
 	basePath := flag.String("base-path", envDefault("BASE_PATH", ""), "URL prefix for template links")
+	baseURL := flag.String("base-url", envDefault("BASE_URL", ""), "Externally-reachable URL for OAuth instance_url (e.g. http://sf-mock:8080/mock/salesforce)")
 	mockUsers := flag.String("mock-users", envDefault("MOCK_USERS", ""), "Comma-separated email:password pairs")
 	sessionSecret := flag.String("session-secret", envDefault("SESSION_SECRET", "sf-mock-dev-secret"), "HMAC key for session cookies")
 	flag.Parse()
@@ -52,6 +53,9 @@ func main() {
 	cfg.AuthEnabled = *authEnabled
 	cfg.InstanceURL = fmt.Sprintf("http://localhost:%d", *port)
 	cfg.BasePath = strings.TrimRight(*basePath, "/")
+	if *baseURL != "" {
+		cfg.BaseURL = strings.TrimRight(*baseURL, "/")
+	}
 	cfg.MockUsers = config.ParseUsers(*mockUsers)
 	cfg.SessionSecret = *sessionSecret
 
@@ -64,6 +68,7 @@ func main() {
 		Str("api_version", cfg.APIVersion).
 		Str("db_path", orDefault(*dbPath, "(in-memory)")).
 		Str("base_path", orDefault(cfg.BasePath, "(none)")).
+		Str("base_url", orDefault(cfg.BaseURL, "(auto)")).
 		Int("mock_users", len(cfg.MockUsers)).
 		Msg("Starting Salesforce Mock API")
 

@@ -91,12 +91,17 @@ func (h *OAuthHandler) HandleToken(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	issuedAt := fmt.Sprintf("%d", now.UnixMilli())
 	accessToken := h.generateAccessToken(username, now)
-	instanceURL := h.config.InstanceURL
-	if strings.HasPrefix(instanceURL, ":") {
-		instanceURL = "http://localhost" + instanceURL
-	}
-	if h.config.BasePath != "" {
-		instanceURL = strings.TrimRight(instanceURL, "/") + h.config.BasePath
+	var instanceURL string
+	if h.config.BaseURL != "" {
+		instanceURL = h.config.BaseURL
+	} else {
+		instanceURL = h.config.InstanceURL
+		if strings.HasPrefix(instanceURL, ":") {
+			instanceURL = "http://localhost" + instanceURL
+		}
+		if h.config.BasePath != "" {
+			instanceURL = strings.TrimRight(instanceURL, "/") + h.config.BasePath
+		}
 	}
 
 	// Generate signature (mock implementation)

@@ -19,6 +19,7 @@ type Config struct {
 	MockPassword     string
 	APIVersion       string
 	InstanceURL      string
+	BaseURL          string // Externally-reachable URL (overrides InstanceURL+BasePath for OAuth)
 	BasePath         string
 	MockUsers        map[string]string // email -> password
 	SessionSecret    string
@@ -92,6 +93,9 @@ func FromEnv() *Config {
 	}
 	if instanceURL := os.Getenv("INSTANCE_URL"); instanceURL != "" {
 		cfg.InstanceURL = instanceURL
+	}
+	if baseURL := os.Getenv("BASE_URL"); baseURL != "" {
+		cfg.BaseURL = strings.TrimRight(baseURL, "/")
 	}
 	if basePath := os.Getenv("BASE_PATH"); basePath != "" {
 		cfg.BasePath = strings.TrimRight(basePath, "/")
