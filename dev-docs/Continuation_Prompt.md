@@ -1,13 +1,13 @@
 # Continue Prompt: Mock Salesforce Server
 
-**Last Updated:** 2026-04-03
-**Phase:** Initial extraction from falcon-backend monorepo complete. All systems functional. 337 tests passing across 27 packages.
+**Last Updated:** 2026-04-03 (Session 2)
+**Phase:** Feature complete. Docker dev environment + "Back to FalconMode" button added. 363 tests passing across 27 packages.
 
 ---
 
 ## Current State Summary (VERIFIED 2026-04-03)
 
-**File counts:** 112 Go source files, 40 test files — 337 tests passing in 27 packages
+**File counts:** 73 Go source files, 41 test files — 363 tests passing in 27 packages
 
 ### Architecture Overview
 
@@ -29,6 +29,8 @@ Self-contained Salesforce REST API mock. Provides OAuth2 username-password grant
 | Vendor Profiles | COMPLETE | 6 YAML profiles: Acme Software, FinServ FinCore, Healthcare MedTech, Manufacturing FactoryOS, Retail RetailEdge, SaaS CloudOps |
 | Exporter | COMPLETE | `cmd/export/` — SQLite DB → `testdata/seed/` JSON |
 | Docker/CI | COMPLETE | `docker/Dockerfile`, Makefile, GCP Artifact Registry push, GitHub Actions build+push |
+| Docker Dev Environment | COMPLETE | `docker-compose-dev.yml` + `.air.toml` with hot reload; port 8085 for standalone dev |
+| Back to FalconMode Button | COMPLETE | `falcon_return` middleware: server-side cookie, URL validation, renders return button in layout |
 
 ### API Surface
 
@@ -68,6 +70,8 @@ API version is configurable (`API_VERSION` env, default `v66.0`). All versioned 
 **Auth middleware dual-path** — Bearer tokens are registered in an in-memory set (`mockValidTokens`) when issued. Session cookies use HMAC-SHA256 (`email|hex(hmac(email, secret))`), 8-hour expiry. Admin endpoints (`/admin/`) require Bearer only, not session cookies.
 
 **Store interface polymorphism** — `store.Store` interface with `store.LoadableStore` extension. `MemoryStore` and `SQLiteStore` both implement `LoadableStore`. The `/admin/reset` handler checks for `LoadableStore` before attempting reload.
+
+**falcon_return uses server-side cookie (not localStorage)** — Persistence across tabs and page navigations is handled via an HTTP cookie (`falcon_return`), set by the `FalconReturn` middleware when `?falcon_return=<encoded_url>` is present on any request. URL validated against allowed origins (`*.orb.local`, `localhost`, `127.0.0.1`) to prevent open redirects. The layout template renders a "Back to FalconMode" button when the cookie is present. FalconMode developer adds `?falcon_return=<encoded_url>` to all Salesforce mock links.
 
 ### SOQL Support Reference
 
@@ -112,6 +116,17 @@ Generators take a `Config` with LLM provider + model + counts; they call the `ge
 - `cmd/generate/` — Direct pipeline runner
 - `cmd/export/` — DB → `testdata/seed/` JSON files
 
+### What's Done (Session 2 — Dev Environment + Back to FalconMode)
+
+- Added Docker Compose dev environment: `docker-compose-dev.yml`, `.air.toml` with hot reload via `air` + Docker Compose Watch
+- Port 8085 for standalone dev to avoid conflicts with FalconMode's `sf-mock` container; OrbStack HTTPS via `https://sf-mock.mock-salesforce.orb.local/`
+- Added `falcon_return` middleware (`internal/server/middleware/falcon_return.go`): reads `?falcon_return=` query param, validates URL against allowed origins, sets server-side cookie
+- Modified `auth.go` middleware, `router.go`, `salesforce.css`, `layout.html`, `login.html` to integrate the return button
+- Added `docs/falcon-return-implementation-guide.md` for mock-Jira developer to implement the same pattern
+- Added `docs/superpowers/specs/2026-04-03-back-to-falconmode-design.md`
+- Updated `.env`: PORT=8085, INSTANCE_URL=localhost:8085, added ZAI_API_KEY and OPENROUTER_API_KEY
+- Docker image rebuilt and pushed to GCP Artifact Registry; 363 tests passing (26 new tests for falcon_return middleware)
+
 ### What's Done (Session 1 — Extraction)
 
 - Initialized repo from scratch as standalone Go module
@@ -130,7 +145,8 @@ Generators take a `Config` with LLM provider + model + counts; they call the `ge
 
 ### What's Queued / Next Steps
 
-1. **Iterate on LLM prompts** — improve realism of generated Salesforce data (see `docs/mock-data-generation-prompt.md` for prompt templates)
+1. **Waiting: FalconMode developer** — needs to add `?falcon_return=<encoded_url>` to all Salesforce mock links so the "Back to FalconMode" button activates. Implementation guide at `docs/falcon-return-implementation-guide.md`. Mock-Jira developer also has their own copy.
+2. **Iterate on LLM prompts** — improve realism of generated Salesforce data (see `docs/mock-data-generation-prompt.md` for prompt templates)
 2. **Add SOQL aggregate functions** — `COUNT()`, `SUM()`, `AVG()`, `GROUP BY` for analytics queries from falcon-backend
 3. **Expand SObject types** — `Opportunity`, `Lead`, `Task`, `Event`, `Contract` — currently only 7 types seeded
 4. **Add Bulk API simulation** — `POST /services/async/{version}/jobs/ingest` for large data loads
@@ -164,6 +180,11 @@ Generators take a `Config` with LLM provider + model + counts; they call the `ge
 | `profiles/acme_software.yaml` | Primary demo profile (18.8K, most complete) |
 | `testdata/seed/cases.json` | Primary seed data (73.8K, ~50 cases) |
 | `docker/Dockerfile` | Production image |
+| `docker/Dockerfile.dev` | Dev image with `air` for hot reload |
+| `docker-compose-dev.yml` | Dev Compose file with hot reload + Docker Compose Watch |
+| `.air.toml` | Air hot-reload config for Go binary |
+| `internal/server/middleware/falcon_return.go` | falcon_return cookie middleware; URL validation, cookie set/read |
+| `docs/falcon-return-implementation-guide.md` | Guide for mock-Jira developer to implement the same pattern |
 | `Makefile` | Build, test, run, docker targets |
 
 ### Configuration Reference
@@ -187,12 +208,17 @@ Generators take a `Config` with LLM provider + model + counts; they call the `ge
 | `OPENAI_API_KEY` | — | — | OpenAI API key for data generation |
 | `ANTHROPIC_API_KEY` | — | — | Anthropic API key for data generation |
 | `OLLAMA_HOST` | — | — | Ollama host for data generation |
+| `FALCON_RETURN_ALLOWED_ORIGINS` | `*.orb.local,localhost,127.0.0.1` | — | Allowed origin patterns for `falcon_return` URL validation |
+| `OPENROUTER_API_KEY` | — | — | OpenRouter API key for data generation |
 
 **Docker image:** `us-west1-docker.pkg.dev/farsipractice/farsipractice/falcon_demo_sf_mock`
 
 ---
 
 ## Previous Sessions
+
+**Session 2 (2026-04-03) — Docker dev environment + Back to FalconMode button:**
+Added `docker-compose-dev.yml` + `.air.toml` for hot-reload dev (port 8085, OrbStack HTTPS). Implemented `falcon_return` middleware: reads `?falcon_return=` param, validates against allowed origins, stores as server-side cookie, renders "Back to FalconMode" button in layout. Updated auth middleware, router, CSS, templates. Wrote implementation guide for mock-Jira developer. Docker image rebuilt and pushed. 363 tests (+26 for falcon_return). 2 commits.
 
 **Session 1 (2026-04-03) — Initial extraction from falcon-backend monorepo:**
 Initialized standalone `github.com/falconleon/mock-salesforce` module. Ported Salesforce mock server, SOQL engine, and storage layer from falcon-backend. Added standalone `endpoint` ChatClient (zero monorepo deps), inlined Z.ai client as `internal/zai/`, added LLM adapter with local SQLite semantic cache. Full data generation pipeline: 4 phases, 8 generator types, 6 vendor YAML profiles. 7 `cmd/` binaries, Docker + CI, comprehensive docs. 337 tests, 7 commits.
