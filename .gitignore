@@ -3,6 +3,9 @@
 .thrum.*.json
 scripts/thrum-startup.sh
 
+# Compiled binary
+salesforce-mock
+
 # Air hot reload temp
 tmp/
 
