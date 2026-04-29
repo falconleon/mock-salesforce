@@ -61,6 +61,30 @@ func (p *Parser) Parse() (*SelectStatement, error) {
 		stmt.Where = where
 	}
 
+	// Parse optional GROUP BY
+	if p.curTokenIs(TokenGroup) {
+		p.nextToken()
+		if !p.expectCurrent(TokenBy) {
+			return nil, fmt.Errorf("expected BY after GROUP, got %s", p.curToken.Type)
+		}
+		p.nextToken()
+		groupBy, err := p.parseGroupBy()
+		if err != nil {
+			return nil, err
+		}
+		stmt.GroupBy = groupBy
+	}
+
+	// Parse optional HAVING
+	if p.curTokenIs(TokenHaving) {
+		p.nextToken()
+		cond, err := p.parseCondition()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Having = &WhereClause{Condition: cond}
+	}
+
 	// Parse optional ORDER BY
 	if p.curTokenIs(TokenOrder) {
 		p.nextToken()
@@ -111,7 +135,7 @@ func (p *Parser) parseSelectList(stmt *SelectStatement) error {
 			}
 			stmt.SubQueries = append(stmt.SubQueries, *sub)
 		} else {
-			field, err := p.parseField()
+			field, err := p.parseSelectField()
 			if err != nil {
 				return err
 			}
@@ -125,6 +149,91 @@ func (p *Parser) parseSelectList(stmt *SelectStatement) error {
 	}
 
 	return nil
+}
+
+// parseSelectField parses a SELECT-list field, which may be a regular field,
+// a relationship field, or an aggregate function call, optionally followed by
+// an alias (`AS alias` or bare `alias`).
+func (p *Parser) parseSelectField() (Field, error) {
+	field, err := p.parseFieldOrAggregate()
+	if err != nil {
+		return Field{}, err
+	}
+	// Optional alias.
+	if p.curTokenIs(TokenAs) {
+		p.nextToken()
+		if !p.curTokenIs(TokenIdent) {
+			return Field{}, fmt.Errorf("expected alias after AS, got %s", p.curToken.Type)
+		}
+		field.Alias = p.curToken.Literal
+		p.nextToken()
+	} else if p.curTokenIs(TokenIdent) {
+		field.Alias = p.curToken.Literal
+		p.nextToken()
+	}
+	return field, nil
+}
+
+// parseFieldOrAggregate parses either a plain (relationship) field or an
+// aggregate function call: AGG(field) or COUNT().
+func (p *Parser) parseFieldOrAggregate() (Field, error) {
+	if !p.curTokenIs(TokenIdent) {
+		return Field{}, fmt.Errorf("expected field name, got %s", p.curToken.Type)
+	}
+	if p.peekTokenIs(TokenLeftParen) {
+		upper := strings.ToUpper(p.curToken.Literal)
+		if isAggregateName(upper) {
+			p.nextToken() // consume function name
+			p.nextToken() // consume '('
+			f := Field{Aggregate: upper}
+			if p.curTokenIs(TokenRightParen) {
+				if upper != "COUNT" {
+					return Field{}, fmt.Errorf("%s requires an argument", upper)
+				}
+				p.nextToken() // consume ')'
+				return f, nil
+			}
+			inner, err := p.parseField()
+			if err != nil {
+				return Field{}, err
+			}
+			f.Name = inner.Name
+			f.Relation = inner.Relation
+			if !p.curTokenIs(TokenRightParen) {
+				return Field{}, fmt.Errorf("expected ) after %s argument, got %s", upper, p.curToken.Type)
+			}
+			p.nextToken()
+			return f, nil
+		}
+	}
+	return p.parseField()
+}
+
+// isAggregateName reports whether the upper-case identifier is a recognized
+// SOQL aggregate function name.
+func isAggregateName(s string) bool {
+	switch s {
+	case "COUNT", "COUNT_DISTINCT", "SUM", "AVG", "MIN", "MAX":
+		return true
+	}
+	return false
+}
+
+// parseGroupBy parses a comma-separated field list after GROUP BY.
+func (p *Parser) parseGroupBy() ([]Field, error) {
+	var fields []Field
+	for {
+		f, err := p.parseField()
+		if err != nil {
+			return nil, err
+		}
+		fields = append(fields, f)
+		if !p.curTokenIs(TokenComma) {
+			break
+		}
+		p.nextToken()
+	}
+	return fields, nil
 }
 
 // parseSubQuery parses a parent-child subquery: ( SELECT ... FROM Rel [WHERE ...] [ORDER BY ...] [LIMIT N] [OFFSET N] ).
@@ -302,8 +411,8 @@ func (p *Parser) parseSimpleCondition() (Condition, error) {
 		return cond, nil
 	}
 
-	// Parse field
-	field, err := p.parseField()
+	// Parse field (allow aggregate function for HAVING)
+	field, err := p.parseFieldOrAggregate()
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +570,7 @@ func (p *Parser) parseOrderBy() ([]OrderByField, error) {
 	var fields []OrderByField
 
 	for {
-		field, err := p.parseField()
+		field, err := p.parseFieldOrAggregate()
 		if err != nil {
 			return nil, err
 		}

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/falconleon/mock-salesforce/internal/schema"
 	"github.com/falconleon/mock-salesforce/internal/store"
 )
 
@@ -42,10 +43,24 @@ func (e *Executor) Execute(stmt *SelectStatement) (*QueryResult, error) {
 	// Build filter function from WHERE clause
 	filter := e.buildFilter(stmt.Where)
 
-	// Query the store
-	records, err := e.store.Query(stmt.Object, filter)
-	if err != nil {
-		return nil, fmt.Errorf("querying store: %w", err)
+	// Source records: virtual schema-discovery objects bypass the store and
+	// are generated on the fly from the describe registry.
+	var (
+		records []store.Record
+		err     error
+	)
+	if schema.IsVirtual(stmt.Object) {
+		records = virtualRecords(stmt.Object, filter)
+	} else {
+		records, err = e.store.Query(stmt.Object, filter)
+		if err != nil {
+			return nil, fmt.Errorf("querying store: %w", err)
+		}
+	}
+
+	// Aggregate / GROUP BY path
+	if hasAggregateFields(stmt.Fields) || len(stmt.GroupBy) > 0 {
+		return e.executeAggregate(stmt, records)
 	}
 
 	// Apply ORDER BY
@@ -216,6 +231,15 @@ func (e *Executor) buildLogicalFilter(c *LogicalCondition) func(store.Record) bo
 
 // getFieldValue retrieves a field value from a record, supporting relationship fields.
 func (e *Executor) getFieldValue(r store.Record, f Field) any {
+	if f.Aggregate != "" {
+		if v, ok := r[f.AggregateKey()]; ok {
+			return v
+		}
+		if f.Alias != "" {
+			return r[f.Alias]
+		}
+		return nil
+	}
 	if f.Relation != "" {
 		// Handle relationship field (e.g., Owner.Name)
 		if related, ok := r[f.Relation].(map[string]any); ok {
