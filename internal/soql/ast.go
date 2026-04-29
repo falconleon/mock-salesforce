@@ -2,12 +2,24 @@ package soql
 
 // SelectStatement represents a SOQL SELECT query.
 type SelectStatement struct {
-	Fields  []Field
-	Object  string
-	Where   *WhereClause
-	OrderBy []OrderByField
-	Limit   *int
-	Offset  *int
+	Fields     []Field
+	SubQueries []SubQuery
+	Object     string
+	Where      *WhereClause
+	OrderBy    []OrderByField
+	Limit      *int
+	Offset     *int
+}
+
+// SubQuery represents a parent-child subquery in the SELECT field list,
+// e.g. (SELECT Id, Subject FROM Cases) inside a top-level Account query.
+type SubQuery struct {
+	Relationship string
+	Fields       []Field
+	Where        *WhereClause
+	OrderBy      []OrderByField
+	Limit        *int
+	Offset       *int
 }
 
 // Field represents a field in the SELECT clause.

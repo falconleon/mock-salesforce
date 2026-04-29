@@ -32,13 +32,18 @@ func NewLoader(store LoadableStore, logger zerolog.Logger) *Loader {
 
 // objectFileMapping maps object types to their JSON file names.
 var objectFileMapping = map[string]string{
-	"Account":      "accounts.json",
-	"User":         "users.json",
-	"Contact":      "contacts.json",
-	"Case":         "cases.json",
-	"EmailMessage": "email_messages.json",
-	"CaseComment":  "case_comments.json",
-	"FeedItem":     "feed_items.json",
+	"Account":         "accounts.json",
+	"User":            "users.json",
+	"Contact":         "contacts.json",
+	"Case":            "cases.json",
+	"EmailMessage":    "email_messages.json",
+	"CaseComment":     "case_comments.json",
+	"FeedItem":        "feed_items.json",
+	"FeedComment":     "feed_comments.json",
+	"Task":            "tasks.json",
+	"Event":           "events.json",
+	"ContentDocument": "content_documents.json",
+	"ContentVersion":  "content_versions.json",
 }
 
 // LoadFromDirectory loads all seed data from a directory.
@@ -54,6 +59,11 @@ func (l *Loader) LoadFromDirectory(dir string) error {
 		"EmailMessage",
 		"CaseComment",
 		"FeedItem",
+		"FeedComment",
+		"Task",
+		"Event",
+		"ContentDocument",
+		"ContentVersion",
 	}
 
 	for _, objType := range loadOrder {
@@ -147,6 +157,11 @@ func (l *Loader) LoadScenario(path string) error {
 		"EmailMessage",
 		"CaseComment",
 		"FeedItem",
+		"FeedComment",
+		"Task",
+		"Event",
+		"ContentDocument",
+		"ContentVersion",
 	}
 
 	for _, objType := range loadOrder {

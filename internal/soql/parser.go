@@ -33,12 +33,10 @@ func (p *Parser) Parse() (*SelectStatement, error) {
 	}
 	p.nextToken()
 
-	// Parse fields
-	fields, err := p.parseFields()
-	if err != nil {
+	// Parse fields (and any parent-child subqueries) in the SELECT list
+	if err := p.parseSelectList(stmt); err != nil {
 		return nil, err
 	}
-	stmt.Fields = fields
 
 	// Expect FROM
 	if !p.expectCurrent(TokenFrom) {
@@ -102,16 +100,23 @@ func (p *Parser) Parse() (*SelectStatement, error) {
 	return stmt, nil
 }
 
-// parseFields parses the field list after SELECT.
-func (p *Parser) parseFields() ([]Field, error) {
-	var fields []Field
-
+// parseSelectList parses the SELECT list, populating Fields and SubQueries on stmt.
+// A parenthesised SELECT in the list is a parent-child subquery.
+func (p *Parser) parseSelectList(stmt *SelectStatement) error {
 	for {
-		field, err := p.parseField()
-		if err != nil {
-			return nil, err
+		if p.curTokenIs(TokenLeftParen) && p.peekTokenIs(TokenSelect) {
+			sub, err := p.parseSubQuery()
+			if err != nil {
+				return err
+			}
+			stmt.SubQueries = append(stmt.SubQueries, *sub)
+		} else {
+			field, err := p.parseField()
+			if err != nil {
+				return err
+			}
+			stmt.Fields = append(stmt.Fields, field)
 		}
-		fields = append(fields, field)
 
 		if !p.curTokenIs(TokenComma) {
 			break
@@ -119,7 +124,99 @@ func (p *Parser) parseFields() ([]Field, error) {
 		p.nextToken() // consume comma
 	}
 
-	return fields, nil
+	return nil
+}
+
+// parseSubQuery parses a parent-child subquery: ( SELECT ... FROM Rel [WHERE ...] [ORDER BY ...] [LIMIT N] [OFFSET N] ).
+// Nested subqueries are not supported.
+func (p *Parser) parseSubQuery() (*SubQuery, error) {
+	if !p.expectCurrent(TokenLeftParen) {
+		return nil, fmt.Errorf("expected ( for subquery, got %s", p.curToken.Type)
+	}
+	p.nextToken()
+
+	if !p.expectCurrent(TokenSelect) {
+		return nil, fmt.Errorf("expected SELECT inside subquery, got %s", p.curToken.Type)
+	}
+	p.nextToken()
+
+	sub := &SubQuery{}
+
+	// Parse field list (no nested subqueries)
+	for {
+		if p.curTokenIs(TokenLeftParen) {
+			return nil, fmt.Errorf("nested subqueries are not supported")
+		}
+		field, err := p.parseField()
+		if err != nil {
+			return nil, err
+		}
+		sub.Fields = append(sub.Fields, field)
+		if !p.curTokenIs(TokenComma) {
+			break
+		}
+		p.nextToken() // consume comma
+	}
+
+	if !p.expectCurrent(TokenFrom) {
+		return nil, fmt.Errorf("expected FROM in subquery, got %s", p.curToken.Type)
+	}
+	p.nextToken()
+
+	if !p.expectCurrent(TokenIdent) {
+		return nil, fmt.Errorf("expected relationship name in subquery, got %s", p.curToken.Type)
+	}
+	sub.Relationship = p.curToken.Literal
+	p.nextToken()
+
+	if p.curTokenIs(TokenWhere) {
+		p.nextToken()
+		where, err := p.parseWhereClause()
+		if err != nil {
+			return nil, err
+		}
+		sub.Where = where
+	}
+
+	if p.curTokenIs(TokenOrder) {
+		p.nextToken()
+		if !p.expectCurrent(TokenBy) {
+			return nil, fmt.Errorf("expected BY after ORDER in subquery, got %s", p.curToken.Type)
+		}
+		p.nextToken()
+		orderBy, err := p.parseOrderBy()
+		if err != nil {
+			return nil, err
+		}
+		sub.OrderBy = orderBy
+	}
+
+	if p.curTokenIs(TokenLimit) {
+		p.nextToken()
+		if !p.expectCurrent(TokenNumber) {
+			return nil, fmt.Errorf("expected number after LIMIT in subquery, got %s", p.curToken.Type)
+		}
+		limit, _ := strconv.Atoi(p.curToken.Literal)
+		sub.Limit = &limit
+		p.nextToken()
+	}
+
+	if p.curTokenIs(TokenOffset) {
+		p.nextToken()
+		if !p.expectCurrent(TokenNumber) {
+			return nil, fmt.Errorf("expected number after OFFSET in subquery, got %s", p.curToken.Type)
+		}
+		offset, _ := strconv.Atoi(p.curToken.Literal)
+		sub.Offset = &offset
+		p.nextToken()
+	}
+
+	if !p.expectCurrent(TokenRightParen) {
+		return nil, fmt.Errorf("expected ) to close subquery, got %s", p.curToken.Type)
+	}
+	p.nextToken()
+
+	return sub, nil
 }
 
 // parseField parses a single field (possibly with relationship).
@@ -277,7 +374,7 @@ func (p *Parser) parseOperator() (string, error) {
 	return op, nil
 }
 
-// parseValue parses a literal value (string, number, boolean, null).
+// parseValue parses a literal value (string, number, boolean, null, date literal).
 func (p *Parser) parseValue() (any, error) {
 	switch p.curToken.Type {
 	case TokenString:
@@ -302,6 +399,29 @@ func (p *Parser) parseValue() (any, error) {
 	case TokenNull:
 		p.nextToken()
 		return nil, nil
+	case TokenIdent:
+		name := strings.ToUpper(p.curToken.Literal)
+		if isSimpleDateLiteral(name) {
+			p.nextToken()
+			return DateLiteral{Name: name}, nil
+		}
+		if isParamDateLiteral(name) {
+			p.nextToken()
+			if !p.curTokenIs(TokenColon) {
+				return nil, fmt.Errorf("expected ':' after %s, got %s", name, p.curToken.Type)
+			}
+			p.nextToken()
+			if !p.curTokenIs(TokenNumber) {
+				return nil, fmt.Errorf("expected number after %s:, got %s", name, p.curToken.Type)
+			}
+			n, err := strconv.Atoi(p.curToken.Literal)
+			if err != nil || n < 0 {
+				return nil, fmt.Errorf("invalid parameter for %s: %s", name, p.curToken.Literal)
+			}
+			p.nextToken()
+			return DateLiteral{Name: name, N: n}, nil
+		}
+		return nil, fmt.Errorf("expected value, got identifier %q", p.curToken.Literal)
 	default:
 		return nil, fmt.Errorf("expected value, got %s (%s)", p.curToken.Type, p.curToken.Literal)
 	}

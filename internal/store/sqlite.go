@@ -50,10 +50,14 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	s := &SQLiteStore{
 		db: db,
 		indexedFields: map[string][]string{
-			"EmailMessage": {"ParentId"},
-			"CaseComment":  {"ParentId"},
-			"FeedItem":     {"ParentId"},
-			"Contact":      {"AccountId"},
+			"EmailMessage":    {"ParentId"},
+			"CaseComment":     {"ParentId"},
+			"FeedItem":        {"ParentId"},
+			"FeedComment":     {"FeedItemId", "ParentId"},
+			"Task":            {"WhoId", "WhatId"},
+			"Event":           {"WhoId", "WhatId"},
+			"ContentVersion":  {"ContentDocumentId"},
+			"Contact":         {"AccountId"},
 		},
 	}
 

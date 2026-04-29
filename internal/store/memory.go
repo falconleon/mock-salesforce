@@ -27,10 +27,14 @@ func NewMemoryStore() *MemoryStore {
 		data:    make(map[string]map[string]Record),
 		indexes: make(map[string]map[string]map[string][]string),
 		indexedFields: map[string][]string{
-			"EmailMessage": {"ParentId"},
-			"CaseComment":  {"ParentId"},
-			"FeedItem":     {"ParentId"},
-			"Contact":      {"AccountId"},
+			"EmailMessage":    {"ParentId"},
+			"CaseComment":     {"ParentId"},
+			"FeedItem":        {"ParentId"},
+			"FeedComment":     {"FeedItemId", "ParentId"},
+			"Task":            {"WhoId", "WhatId"},
+			"Event":           {"WhoId", "WhatId"},
+			"ContentVersion":  {"ContentDocumentId"},
+			"Contact":         {"AccountId"},
 		},
 	}
 }
@@ -284,13 +288,18 @@ func (s *MemoryStore) generateID(objectType string) string {
 // getIDPrefix returns the Salesforce ID prefix for an object type.
 func getIDPrefix(objectType string) string {
 	prefixes := map[string]string{
-		"Account":      "001",
-		"Contact":      "003",
-		"Case":         "500",
-		"User":         "005",
-		"CaseComment":  "00a",
-		"EmailMessage": "02s",
-		"FeedItem":     "0D5",
+		"Account":         "001",
+		"Contact":         "003",
+		"Case":            "500",
+		"User":            "005",
+		"CaseComment":     "00a",
+		"EmailMessage":    "02s",
+		"FeedItem":        "0D5",
+		"FeedComment":     "0D7",
+		"Task":            "00T",
+		"Event":           "00U",
+		"ContentDocument": "069",
+		"ContentVersion":  "068",
 	}
 	if prefix, ok := prefixes[objectType]; ok {
 		return prefix

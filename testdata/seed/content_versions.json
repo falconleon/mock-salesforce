@@ -1,0 +1,38 @@
+[
+  {
+    "Id": "0683t00000AbCdEAAV",
+    "ContentDocumentId": "0693t00000AbCdEAAV",
+    "Title": "Incident Report — SAML Token Regression",
+    "VersionNumber": "1",
+    "FileType": "PDF",
+    "ContentSize": 184320,
+    "CreatedDate": "2024-01-20T18:00:00Z"
+  },
+  {
+    "Id": "0683t00000FgHiJAAV",
+    "ContentDocumentId": "0693t00000AbCdEAAV",
+    "Title": "Incident Report — SAML Token Regression",
+    "VersionNumber": "2",
+    "FileType": "PDF",
+    "ContentSize": 192512,
+    "CreatedDate": "2024-01-20T20:30:00Z"
+  },
+  {
+    "Id": "0683t00000KlMnOAAV",
+    "ContentDocumentId": "0693t00000FgHiJAAV",
+    "Title": "Customer Logs — case 5003t00002AbCdEAAV",
+    "VersionNumber": "1",
+    "FileType": "TXT",
+    "ContentSize": 51200,
+    "CreatedDate": "2024-01-20T18:15:00Z"
+  },
+  {
+    "Id": "0683t00000PqRsTAAV",
+    "ContentDocumentId": "0693t00000KlMnOAAV",
+    "Title": "Q1 Account Health Summary",
+    "VersionNumber": "1",
+    "FileType": "XLSX",
+    "ContentSize": 76800,
+    "CreatedDate": "2024-01-20T19:00:00Z"
+  }
+]

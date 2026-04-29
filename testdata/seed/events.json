@@ -1,0 +1,26 @@
+[
+  {
+    "Id": "00U3t00000AbCdEAAV",
+    "WhoId": "0033t00002CdEfGAAV",
+    "WhatId": "5003t00002AbCdEAAV",
+    "Subject": "Post-incident review with customer",
+    "ActivityDateTime": "2024-01-22T15:00:00Z",
+    "DurationInMinutes": 60,
+    "Location": "Zoom",
+    "OwnerId": "0053t00000XyZAbAAV",
+    "Description": "Walk through root cause and remediation steps for SAML regression.",
+    "CreatedDate": "2024-01-20T16:00:00Z"
+  },
+  {
+    "Id": "00U3t00000FgHiJAAV",
+    "WhoId": "0033t00002HiJkLAAV",
+    "WhatId": "0013t00002FgHiJAAV",
+    "Subject": "QBR planning meeting",
+    "ActivityDateTime": "2024-02-05T17:30:00Z",
+    "DurationInMinutes": 45,
+    "Location": "HQ — Conf Room B",
+    "OwnerId": "0053t00000LmNoPAAV",
+    "Description": "Internal prep for upcoming Quarterly Business Review.",
+    "CreatedDate": "2024-01-20T17:00:00Z"
+  }
+]

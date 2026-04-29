@@ -1,0 +1,38 @@
+[
+  {
+    "Id": "00T3t00000AbCdEAAV",
+    "WhoId": "0033t00002CdEfGAAV",
+    "WhatId": "5003t00002AbCdEAAV",
+    "Subject": "Call customer to confirm patch deployment",
+    "ActivityDate": "2024-01-21",
+    "Status": "Open",
+    "Priority": "High",
+    "OwnerId": "0053t00000XyZAbAAV",
+    "Description": "Follow up with the affected customer to confirm patch v2.5.2 resolved the SAML token validation regression.",
+    "CreatedDate": "2024-01-20T11:00:00Z"
+  },
+  {
+    "Id": "00T3t00000FgHiJAAV",
+    "WhoId": "0033t00002HiJkLAAV",
+    "WhatId": "5003t00002XyZAbAAV",
+    "Subject": "Schedule onboarding call",
+    "ActivityDate": "2024-01-25",
+    "Status": "Not Started",
+    "Priority": "Normal",
+    "OwnerId": "0053t00000AbCdEAAV",
+    "Description": "Coordinate kickoff for new account onboarding workflow.",
+    "CreatedDate": "2024-01-20T12:30:00Z"
+  },
+  {
+    "Id": "00T3t00000KlMnOAAV",
+    "WhoId": null,
+    "WhatId": "0013t00002AbCdEAAV",
+    "Subject": "Review quarterly account health report",
+    "ActivityDate": "2024-02-01",
+    "Status": "In Progress",
+    "Priority": "Normal",
+    "OwnerId": "0053t00000LmNoPAAV",
+    "Description": "Prep account-health summary for QBR.",
+    "CreatedDate": "2024-01-20T14:00:00Z"
+  }
+]
