@@ -647,3 +647,91 @@ func TestSObjectHandler_NewSObjects_DescribeAndRetrieve(t *testing.T) {
 		})
 	}
 }
+
+
+func TestSObjectHandler_HandleGlobalDescribe(t *testing.T) {
+	s := store.NewMemoryStore()
+	logger := zerolog.Nop()
+	handler := handlers.NewSObjectHandler(s, logger)
+
+	req := httptest.NewRequest("GET", "/services/data/v66.0/sobjects/", nil)
+	req = setPathValues(req, map[string]string{"version": "v66.0"})
+	rec := httptest.NewRecorder()
+
+	handler.HandleGlobalDescribe(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp["encoding"] != "UTF-8" {
+		t.Errorf("expected encoding UTF-8, got %v", resp["encoding"])
+	}
+	sobjects, ok := resp["sobjects"].([]any)
+	if !ok {
+		t.Fatalf("expected sobjects array, got %T", resp["sobjects"])
+	}
+	names := map[string]map[string]any{}
+	for _, s := range sobjects {
+		entry := s.(map[string]any)
+		names[entry["name"].(string)] = entry
+	}
+	expected := []string{
+		"Account", "Contact", "User", "Case",
+		"EmailMessage", "CaseComment", "FeedItem", "FeedComment",
+		"Task", "Event", "ContentDocument", "ContentVersion",
+		"EntityDefinition", "FieldDefinition",
+	}
+	for _, want := range expected {
+		entry, ok := names[want]
+		if !ok {
+			t.Errorf("expected sobject %q in global describe", want)
+			continue
+		}
+		if _, hasFields := entry["fields"]; hasFields {
+			t.Errorf("global describe entry %q should not include fields", want)
+		}
+		if entry["keyPrefix"] == nil {
+			t.Errorf("global describe entry %q missing keyPrefix", want)
+		}
+	}
+}
+
+func TestSObjectHandler_HandleDescribe_VirtualTypes(t *testing.T) {
+	s := store.NewMemoryStore()
+	logger := zerolog.Nop()
+	handler := handlers.NewSObjectHandler(s, logger)
+
+	for _, name := range []string{"EntityDefinition", "FieldDefinition"} {
+		t.Run(name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/services/data/v66.0/sobjects/"+name+"/describe", nil)
+			req = setPathValues(req, map[string]string{"version": "v66.0", "type": name})
+			rec := httptest.NewRecorder()
+			handler.HandleDescribe(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+			}
+			var resp map[string]any
+			if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			if resp["name"] != name {
+				t.Errorf("expected name %q, got %v", name, resp["name"])
+			}
+			if resp["queryable"] != true {
+				t.Errorf("expected queryable=true, got %v", resp["queryable"])
+			}
+			if resp["createable"] != false {
+				t.Errorf("expected createable=false, got %v", resp["createable"])
+			}
+			fields, _ := resp["fields"].([]any)
+			if len(fields) == 0 {
+				t.Error("expected non-empty fields slice")
+			}
+		})
+	}
+}

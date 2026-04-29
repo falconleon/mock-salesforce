@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"github.com/falconleon/mock-salesforce/internal/schema"
 	"github.com/falconleon/mock-salesforce/internal/store"
 	"github.com/falconleon/mock-salesforce/pkg/models"
 )
@@ -1174,6 +1175,110 @@ func (h *SObjectHandler) getObjectMetadata(objectType string) map[string]any {
 		"retrieveable": true,
 		"searchable":   true,
 		"custom":       false,
+	}
+}
+
+// HandleGlobalDescribe lists every registered SObject type.
+// GET /services/data/vXX.0/sobjects/
+func (h *SObjectHandler) HandleGlobalDescribe(w http.ResponseWriter, r *http.Request) {
+	h.logger.Debug().Msg("Global describe")
+
+	names := globalDescribeTypes()
+	sobjects := make([]map[string]any, 0, len(names))
+	for _, name := range names {
+		meta := h.getObjectMetadata(name)
+		if meta == nil {
+			continue
+		}
+		// Strip the verbose `fields` slice — global describe is the type list
+		// only; per-type details are served by /describe.
+		entry := map[string]any{}
+		for k, v := range meta {
+			if k == "fields" {
+				continue
+			}
+			entry[k] = v
+		}
+		sobjects = append(sobjects, entry)
+	}
+
+	resp := map[string]any{
+		"encoding":     "UTF-8",
+		"maxBatchSize": 200,
+		"sobjects":     sobjects,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// globalDescribeTypes returns the union of legacy described types and any
+// extra types registered in the schema package (e.g. EntityDefinition,
+// FieldDefinition), sorted for deterministic output.
+func globalDescribeTypes() []string {
+	known := []string{
+		"Account", "Contact", "User", "Case",
+		"EmailMessage", "CaseComment", "FeedItem", "FeedComment",
+		"Task", "Event", "ContentDocument", "ContentVersion",
+	}
+	seen := make(map[string]bool, len(known))
+	for _, n := range known {
+		seen[n] = true
+	}
+	for _, n := range schema.Names() {
+		if !seen[n] {
+			known = append(known, n)
+			seen[n] = true
+		}
+	}
+	return known
+}
+
+// metadataFromRegistry converts a schema.ObjectMeta into the same shape
+// returned by getObjectMetadata for legacy types.
+func metadataFromRegistry(m schema.ObjectMeta) map[string]any {
+	fields := make([]map[string]any, 0, len(m.Fields()))
+	for _, f := range m.Fields() {
+		entry := map[string]any{
+			"name":         f.Name,
+			"label":        f.Label,
+			"type":         f.Type,
+			"nillable":     f.Nillable,
+			"updateable":   f.Updateable,
+			"createable":   f.Createable,
+			"filterable":   f.Filterable,
+			"sortable":     f.Sortable,
+			"unique":       f.Unique,
+			"externalId":   f.ExternalID,
+			"defaultValue": nil,
+		}
+		if f.Length > 0 {
+			entry["length"] = f.Length
+		}
+		if len(f.ReferenceTo) > 0 {
+			entry["referenceTo"] = f.ReferenceTo
+		}
+		fields = append(fields, entry)
+	}
+	return map[string]any{
+		"name":        m.Name,
+		"label":       m.Label,
+		"labelPlural": m.LabelPlural,
+		"keyPrefix":   m.KeyPrefix,
+		"urls": map[string]string{
+			"sobject":     "/services/data/v66.0/sobjects/" + m.Name,
+			"describe":    "/services/data/v66.0/sobjects/" + m.Name + "/describe",
+			"rowTemplate": "/services/data/v66.0/sobjects/" + m.Name + "/{ID}",
+		},
+		"fields":       fields,
+		"createable":   m.Createable,
+		"updateable":   m.Updateable,
+		"deletable":    m.Deletable,
+		"queryable":    m.Queryable,
+		"retrieveable": m.Retrieveable,
+		"searchable":   m.Searchable,
+		"custom":       m.Custom,
 	}
 }
 

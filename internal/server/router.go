@@ -103,7 +103,12 @@ func (s *Server) setupRoutes() http.Handler {
 	// Query endpoint (supports multiple API versions)
 	mux.HandleFunc("GET /services/data/{version}/query", queryHandler.HandleQuery)
 
+	// Tooling API SOQL endpoint — reuses the standard query handler.
+	mux.HandleFunc("GET /services/data/{version}/tooling/query", queryHandler.HandleQuery)
+	mux.HandleFunc("GET /services/data/{version}/tooling/query/", queryHandler.HandleQuery)
+
 	// SObject CRUD endpoints
+	mux.HandleFunc("GET /services/data/{version}/sobjects/", sobjectHandler.HandleGlobalDescribe)
 	mux.HandleFunc("GET /services/data/{version}/sobjects/{type}/describe", sobjectHandler.HandleDescribe)
 	mux.HandleFunc("GET /services/data/{version}/sobjects/{type}/{id}", sobjectHandler.HandleGet)
 	mux.HandleFunc("POST /services/data/{version}/sobjects/{type}", sobjectHandler.HandleCreate)
