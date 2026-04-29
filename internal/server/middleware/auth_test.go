@@ -127,3 +127,65 @@ func TestAuth_InvalidHeaderFormat(t *testing.T) {
 		t.Errorf("expected status 401 for invalid header format, got %d", rec.Code)
 	}
 }
+
+
+func TestAuth_RevokedTokenReturnsSFArrayError(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	authMW := middleware.Auth(logger, "test-secret")(handler)
+
+	middleware.RegisterToken("token-to-be-revoked")
+
+	// Revoke and confirm subsequent calls fail with the SF wire-format
+	// 401 array body.
+	if !middleware.RevokeToken("token-to-be-revoked") {
+		t.Fatal("expected RevokeToken to report success")
+	}
+
+	req := httptest.NewRequest("GET", "/services/data/v66.0/query", nil)
+	req.Header.Set("Authorization", "Bearer token-to-be-revoked")
+	rec := httptest.NewRecorder()
+	authMW.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 after revoke, got %d", rec.Code)
+	}
+	var errs []models.APIError
+	if err := json.NewDecoder(rec.Body).Decode(&errs); err != nil {
+		t.Fatalf("expected SF array body: %v", err)
+	}
+	if len(errs) != 1 || errs[0].ErrorCode != "INVALID_SESSION_ID" {
+		t.Errorf("unexpected error body: %+v", errs)
+	}
+}
+
+func TestAuth_RefreshTokenRejectedAsBearer(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	authMW := middleware.Auth(logger, "test-secret")(handler)
+
+	// A refresh token is registered but should NOT be usable as a Bearer.
+	middleware.RegisterTokenInfo(&middleware.TokenInfo{
+		Token: "refresh-token-not-bearer",
+		Type:  "refresh",
+	})
+
+	req := httptest.NewRequest("GET", "/services/data/v66.0/query", nil)
+	req.Header.Set("Authorization", "Bearer refresh-token-not-bearer")
+	rec := httptest.NewRecorder()
+	authMW.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("refresh tokens must not be accepted as bearers; got %d", rec.Code)
+	}
+}
+
+func TestAuth_RevokeUnknownTokenReturnsFalse(t *testing.T) {
+	if middleware.RevokeToken("never-issued") {
+		t.Error("expected RevokeToken to return false for unknown token")
+	}
+}

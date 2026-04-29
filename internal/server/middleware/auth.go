@@ -21,25 +21,74 @@ import (
 const sessionCookieName = "sf_session"
 
 // publicPaths are paths that don't require authentication.
+// Endpoints that perform their own auth (revoke/introspect) or are
+// intentionally unauthenticated (token) are listed here.
 var publicPaths = map[string]bool{
-	"/services/oauth2/token": true,
-	"/health":                true,
-	"/":                      true,
-	"/login":                 true,
+	"/services/oauth2/token":      true,
+	"/services/oauth2/revoke":     true,
+	"/services/oauth2/introspect": true,
+	"/health":                     true,
+	"/":                           true,
+	"/login":                      true,
+}
+
+// TokenInfo carries metadata about an issued OAuth token. Used by the
+// auth middleware for validation and by the OAuth handlers for
+// introspection and userinfo.
+type TokenInfo struct {
+	Token     string
+	Type      string // "access" or "refresh"
+	Username  string
+	UserID    string
+	ClientID  string
+	Scope     string
+	IssuedAt  int64 // unix seconds
+	ExpiresAt int64 // unix seconds; 0 = no expiry
+	Refresh   string
 }
 
 var (
-	mu              sync.RWMutex
-	mockValidTokens = map[string]bool{
-		"mock-access-token": true,
+	mu         sync.RWMutex
+	mockTokens = map[string]*TokenInfo{
+		"mock-access-token": {Token: "mock-access-token", Type: "access"},
 	}
 )
 
-// RegisterToken adds a token to the valid tokens set.
+// RegisterToken adds a token to the valid tokens set with no metadata.
+// Retained for backwards compatibility with existing callers/tests.
 func RegisterToken(token string) {
 	mu.Lock()
-	mockValidTokens[token] = true
+	mockTokens[token] = &TokenInfo{Token: token, Type: "access"}
 	mu.Unlock()
+}
+
+// RegisterTokenInfo registers a token along with its full metadata.
+func RegisterTokenInfo(info *TokenInfo) {
+	if info == nil || info.Token == "" {
+		return
+	}
+	mu.Lock()
+	mockTokens[info.Token] = info
+	mu.Unlock()
+}
+
+// LookupToken returns the metadata for a token, or nil if unknown/revoked.
+func LookupToken(token string) *TokenInfo {
+	mu.RLock()
+	defer mu.RUnlock()
+	return mockTokens[token]
+}
+
+// RevokeToken removes a token (access or refresh) from the valid set.
+// Returns true if the token existed and was removed, false otherwise.
+func RevokeToken(token string) bool {
+	mu.Lock()
+	defer mu.Unlock()
+	if _, ok := mockTokens[token]; !ok {
+		return false
+	}
+	delete(mockTokens, token)
+	return true
 }
 
 // Auth validates Bearer tokens and session cookies on protected routes.
@@ -75,10 +124,7 @@ func Auth(logger zerolog.Logger, sessionSecret string) func(http.Handler) http.H
 			authHeader := r.Header.Get("Authorization")
 			if strings.HasPrefix(authHeader, "Bearer ") {
 				token := strings.TrimPrefix(authHeader, "Bearer ")
-				mu.RLock()
-				valid := mockValidTokens[token]
-				mu.RUnlock()
-				if valid {
+				if info := LookupToken(token); info != nil && info.Type != "refresh" {
 					SetSessionCookie(w, "bearer-user", sessionSecret)
 					next.ServeHTTP(w, r)
 					return

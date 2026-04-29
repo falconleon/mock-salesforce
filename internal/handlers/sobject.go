@@ -10,7 +10,6 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/falconleon/mock-salesforce/internal/schema"
 	"github.com/falconleon/mock-salesforce/internal/store"
 	"github.com/falconleon/mock-salesforce/pkg/models"
 )
@@ -1121,6 +1120,11 @@ func (h *SObjectHandler) getObjectMetadata(objectType string) map[string]any {
 
 	meta, ok := objectMeta[objectType]
 	if !ok {
+		// Schema-discovery virtual types (EntityDefinition / FieldDefinition)
+		// are described from the registry rather than the store.
+		if reg, regOk := schema.Get(objectType); regOk {
+			return metadataFromRegistry(reg)
+		}
 		// Check if data exists for this object type (for dynamic objects)
 		types := h.store.ObjectTypes()
 		found := false

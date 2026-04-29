@@ -22,6 +22,10 @@ func (s *Server) setupRoutes() http.Handler {
 
 	// Public routes (no auth required)
 	mux.HandleFunc("POST /services/oauth2/token", oauthHandler.HandleToken)
+	mux.HandleFunc("POST /services/oauth2/revoke", oauthHandler.HandleRevoke)
+	mux.HandleFunc("GET /services/oauth2/revoke", oauthHandler.HandleRevoke)
+	mux.HandleFunc("POST /services/oauth2/introspect", oauthHandler.HandleIntrospect)
+	mux.HandleFunc("GET /services/oauth2/userinfo", oauthHandler.HandleUserinfo)
 	mux.HandleFunc("GET /health", healthHandler.HandleHealth)
 
 	basePath := s.config.BasePath
