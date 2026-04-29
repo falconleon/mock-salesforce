@@ -234,10 +234,45 @@ func validateSessionCookie(r *http.Request, secret string) (*SessionClaims, bool
 	return claims, true
 }
 
+// isHTMLRequest decides whether a failed-auth response should be a 302
+// redirect to /login (browser flow) or a 401 JSON error (API flow).
+//
+// Negotiation rule:
+//   - Explicit Bearer Authorization → API caller → 401 JSON.
+//   - /services/* and /admin/* are API surfaces → 401 JSON regardless of Accept.
+//   - Accept header that excludes text/html (e.g. application/json) → 401 JSON.
+//   - Otherwise: path is a known UI route AND Accept allows HTML
+//     (text/html, */*, or absent) → 302 redirect.
+//   - Default → 401 JSON.
 func isHTMLRequest(r *http.Request) bool {
+	if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+		return false
+	}
+	path := r.URL.Path
+	if strings.HasPrefix(path, "/services/") || strings.HasPrefix(path, "/admin/") {
+		return false
+	}
 	accept := r.Header.Get("Accept")
-	return strings.Contains(accept, "text/html") ||
-		strings.HasPrefix(r.URL.Path, "/lightning/")
+	acceptHTML := accept == "" ||
+		strings.Contains(accept, "text/html") ||
+		strings.Contains(accept, "*/*")
+	if !acceptHTML {
+		return false
+	}
+	return isUIRoute(path)
+}
+
+// isUIRoute reports whether the path is one of the browser-facing
+// routes registered in router.go (Lightning pages, /home, settings,
+// playground). New UI route prefixes should be added here so unauth
+// hits redirect to /login instead of returning JSON 401.
+func isUIRoute(path string) bool {
+	if path == "/home" {
+		return true
+	}
+	return strings.HasPrefix(path, "/lightning/") ||
+		strings.HasPrefix(path, "/settings") ||
+		strings.HasPrefix(path, "/playground")
 }
 
 func writeAuthError(w http.ResponseWriter, logger zerolog.Logger, msg string) {

@@ -424,3 +424,153 @@ func TestAuth_RejectsForeignSecretJWTCookie(t *testing.T) {
 		t.Errorf("want 302 (cookie signed by wrong secret), got %d", rec.Code)
 	}
 }
+
+
+// Content-negotiation matrix tests for the unauth response path. The
+// rule (documented on isHTMLRequest) is that 302 redirects are reserved
+// for browser-style hits on UI routes; API surfaces and JSON-only
+// callers always receive 401 JSON.
+
+func TestAuth_APIPath_AcceptHTML_StillReturns401JSON(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := middleware.Auth(logger, "test-secret")(handler)
+
+	req := httptest.NewRequest("GET", "/services/data/v66.0/query", nil)
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401 for /services/* even with Accept: text/html, got %d", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Errorf("want JSON content-type, got %q", ct)
+	}
+	var errs []models.APIError
+	if err := json.NewDecoder(rec.Body).Decode(&errs); err != nil {
+		t.Fatalf("expected SF array body: %v", err)
+	}
+	if len(errs) != 1 || errs[0].ErrorCode != "INVALID_SESSION_ID" {
+		t.Errorf("unexpected error body: %+v", errs)
+	}
+}
+
+func TestAuth_UIPath_AcceptJSON_Returns401(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := middleware.Auth(logger, "test-secret")(handler)
+
+	req := httptest.NewRequest("GET", "/home", nil)
+	req.Header.Set("Accept", "application/json")
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401 for UI path with Accept: application/json, got %d", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "" {
+		t.Errorf("must not redirect when caller asked for JSON; got Location=%q", loc)
+	}
+}
+
+func TestAuth_UIPath_NoAccept_Returns302(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := middleware.Auth(logger, "test-secret")(handler)
+
+	req := httptest.NewRequest("GET", "/home", nil)
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("want 302 for /home with no Accept, got %d", rec.Code)
+	}
+	loc := rec.Header().Get("Location")
+	if !strings.HasPrefix(loc, "/login") {
+		t.Errorf("want Location to start with /login, got %q", loc)
+	}
+}
+
+func TestAuth_UIPath_BearerHeader_Returns401(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := middleware.Auth(logger, "test-secret")(handler)
+
+	// Even though /lightning/* is a UI route, an explicit Bearer header
+	// signals an API caller — they should get JSON, not a redirect.
+	req := httptest.NewRequest("GET", "/lightning/o/Case/list", nil)
+	req.Header.Set("Authorization", "Bearer not-a-real-token")
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401 when Bearer header is present, got %d", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "" {
+		t.Errorf("must not redirect when Bearer header is present; got Location=%q", loc)
+	}
+}
+
+func TestAuth_PlaygroundPath_AcceptHTML_Returns302(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := middleware.Auth(logger, "test-secret")(handler)
+
+	req := httptest.NewRequest("GET", "/playground", nil)
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("want 302 for /playground with Accept: text/html, got %d", rec.Code)
+	}
+}
+
+func TestAuth_SettingsPath_AcceptWildcard_Returns302(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := middleware.Auth(logger, "test-secret")(handler)
+
+	req := httptest.NewRequest("GET", "/settings", nil)
+	req.Header.Set("Accept", "*/*") // curl's default
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("want 302 for /settings with Accept: */*, got %d", rec.Code)
+	}
+}
+
+func TestAuth_UnknownPath_AcceptHTML_Returns401(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mw := middleware.Auth(logger, "test-secret")(handler)
+
+	// Unknown / non-UI path with browser-style Accept must still 401:
+	// the negotiation rule requires both an HTML-friendly Accept AND a
+	// known UI route for the redirect branch.
+	req := httptest.NewRequest("GET", "/no-such-route", nil)
+	req.Header.Set("Accept", "text/html")
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("want 401 for unknown path even with Accept: text/html, got %d", rec.Code)
+	}
+}
