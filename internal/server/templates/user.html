@@ -1,0 +1,55 @@
+{{template "layout" .}}
+{{define "content"}}
+<div class="breadcrumb">
+    <a href="{{basePath}}/home">Home</a> &gt;
+    <span>{{fieldStr .User "Name"}}</span>
+</div>
+<div class="record-page">
+    <div class="record-header">
+        <h1>{{fieldStr .User "Name"}}</h1>
+        <div class="record-meta">
+            {{if fieldStr .User "Title"}}<span>{{fieldStr .User "Title"}}</span>{{end}}
+        </div>
+    </div>
+    <div class="card">
+        <h3>User Details</h3>
+        <dl class="field-list">
+            <dt>Username</dt>
+            <dd>{{fieldStr .User "Username"}}</dd>
+            <dt>First Name</dt>
+            <dd>{{fieldStr .User "FirstName"}}</dd>
+            <dt>Last Name</dt>
+            <dd>{{fieldStr .User "LastName"}}</dd>
+            <dt>Email</dt>
+            <dd>{{if fieldStr .User "Email"}}<a href="mailto:{{fieldStr .User "Email"}}">{{fieldStr .User "Email"}}</a>{{end}}</dd>
+            <dt>Title</dt>
+            <dd>{{fieldStr .User "Title"}}</dd>
+            <dt>Department</dt>
+            <dd>{{fieldStr .User "Department"}}</dd>
+            <dt>Active</dt>
+            <dd>{{if index .User "IsActive"}}{{index .User "IsActive"}}{{end}}</dd>
+        </dl>
+    </div>
+
+    {{if .OwnedCases}}
+    <div class="card" style="margin-top: 1rem;">
+        <h3>Owned Cases ({{len .OwnedCases}})</h3>
+        <table class="sf-table">
+            <thead>
+                <tr><th>Case Number</th><th>Subject</th><th>Status</th><th>Priority</th></tr>
+            </thead>
+            <tbody>
+                {{range .OwnedCases}}
+                <tr class="sf-row" onclick="window.location='{{basePath}}/lightning/r/Case/{{fieldStr . "Id"}}/view'">
+                    <td class="case-number"><a href="{{basePath}}/lightning/r/Case/{{fieldStr . "Id"}}/view">{{fieldStr . "CaseNumber"}}</a></td>
+                    <td>{{fieldStr . "Subject"}}</td>
+                    <td><span class="badge {{fieldStr . "Status" | statusClass}}">{{fieldStr . "Status"}}</span></td>
+                    <td><span class="badge {{fieldStr . "Priority" | priorityClass}}">{{fieldStr . "Priority"}}</span></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{end}}
+</div>
+{{end}}

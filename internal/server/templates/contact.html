@@ -1,0 +1,63 @@
+{{template "layout" .}}
+{{define "content"}}
+<div class="breadcrumb">
+    <a href="{{basePath}}/home">Home</a> &gt;
+    <a href="{{basePath}}/lightning/o/Account/list">Customers</a> &gt;
+    {{if index .Contact "_Account"}}
+    <a href="{{basePath}}/lightning/r/Account/{{fieldStr (index .Contact "_Account") "Id"}}/view">{{fieldStr (index .Contact "_Account") "Name"}}</a> &gt;
+    {{end}}
+    <span>{{fieldStr .Contact "Name"}}</span>
+</div>
+<div class="record-page">
+    <div class="record-header">
+        <h1>{{fieldStr .Contact "Name"}}</h1>
+        <div class="record-meta">
+            {{if fieldStr .Contact "Title"}}<span>{{fieldStr .Contact "Title"}}</span>{{end}}
+        </div>
+    </div>
+    <div class="card">
+        <h3>Contact Details</h3>
+        <dl class="field-list">
+            <dt>First Name</dt>
+            <dd>{{fieldStr .Contact "FirstName"}}</dd>
+            <dt>Last Name</dt>
+            <dd>{{fieldStr .Contact "LastName"}}</dd>
+            <dt>Title</dt>
+            <dd>{{fieldStr .Contact "Title"}}</dd>
+            <dt>Department</dt>
+            <dd>{{fieldStr .Contact "Department"}}</dd>
+            <dt>Email</dt>
+            <dd>{{if fieldStr .Contact "Email"}}<a href="mailto:{{fieldStr .Contact "Email"}}">{{fieldStr .Contact "Email"}}</a>{{end}}</dd>
+            <dt>Phone</dt>
+            <dd>{{fieldStr .Contact "Phone"}}</dd>
+            <dt>Mobile</dt>
+            <dd>{{fieldStr .Contact "MobilePhone"}}</dd>
+            <dt>Mailing City</dt>
+            <dd>{{fieldStr .Contact "MailingCity"}}{{if fieldStr .Contact "MailingState"}}, {{fieldStr .Contact "MailingState"}}{{end}}</dd>
+            <dt>Account</dt>
+            <dd>{{if index .Contact "_Account"}}<a href="{{basePath}}/lightning/r/Account/{{fieldStr (index .Contact "_Account") "Id"}}/view">{{fieldStr (index .Contact "_Account") "Name"}}</a>{{end}}</dd>
+        </dl>
+    </div>
+
+    {{if .Cases}}
+    <div class="card" style="margin-top: 1rem;">
+        <h3>Related Cases ({{len .Cases}})</h3>
+        <table class="sf-table">
+            <thead>
+                <tr><th>Case Number</th><th>Subject</th><th>Status</th><th>Priority</th></tr>
+            </thead>
+            <tbody>
+                {{range .Cases}}
+                <tr class="sf-row" onclick="window.location='{{basePath}}/lightning/r/Case/{{fieldStr . "Id"}}/view'">
+                    <td class="case-number"><a href="{{basePath}}/lightning/r/Case/{{fieldStr . "Id"}}/view">{{fieldStr . "CaseNumber"}}</a></td>
+                    <td>{{fieldStr . "Subject"}}</td>
+                    <td><span class="badge {{fieldStr . "Status" | statusClass}}">{{fieldStr . "Status"}}</span></td>
+                    <td><span class="badge {{fieldStr . "Priority" | priorityClass}}">{{fieldStr . "Priority"}}</span></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{end}}
+</div>
+{{end}}

@@ -1,8 +1,8 @@
 {{template "layout" .}}
 {{define "content"}}
 <div class="breadcrumb">
-    <a href="{{basePath}}/lightning/o/Case/list">Cases</a> &gt;
-    <a href="{{basePath}}/lightning/o/Account/list">Accounts</a> &gt;
+    <a href="{{basePath}}/home">Home</a> &gt;
+    <a href="{{basePath}}/lightning/o/Account/list">Customers</a> &gt;
     <span>{{fieldStr .Account "Name"}}</span>
 </div>
 <div class="record-page">
@@ -10,7 +10,7 @@
         <h1>{{fieldStr .Account "Name"}}</h1>
     </div>
     <div class="card">
-        <h3>Account Details</h3>
+        <h3>Customer Details</h3>
         <dl class="field-list">
             <dt>Industry</dt>
             <dd>{{fieldStr .Account "Industry"}}</dd>
@@ -20,8 +20,31 @@
             <dd>{{fieldStr .Account "Phone"}}</dd>
             <dt>Website</dt>
             <dd>{{fieldStr .Account "Website"}}</dd>
+            <dt>Billing Address</dt>
+            <dd>{{fieldStr .Account "BillingStreet"}}{{if fieldStr .Account "BillingCity"}}, {{fieldStr .Account "BillingCity"}}{{end}}{{if fieldStr .Account "BillingState"}}, {{fieldStr .Account "BillingState"}}{{end}} {{fieldStr .Account "BillingPostalCode"}}</dd>
         </dl>
     </div>
+
+    {{if .Contacts}}
+    <div class="card" style="margin-top: 1rem;">
+        <h3>Contacts ({{len .Contacts}})</h3>
+        <table class="sf-table">
+            <thead>
+                <tr><th>Name</th><th>Title</th><th>Email</th><th>Phone</th></tr>
+            </thead>
+            <tbody>
+                {{range .Contacts}}
+                <tr class="sf-row" onclick="window.location='{{basePath}}/lightning/r/Contact/{{fieldStr . "Id"}}/view'">
+                    <td><a href="{{basePath}}/lightning/r/Contact/{{fieldStr . "Id"}}/view">{{fieldStr . "Name"}}</a></td>
+                    <td>{{fieldStr . "Title"}}</td>
+                    <td>{{fieldStr . "Email"}}</td>
+                    <td>{{fieldStr . "Phone"}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    {{end}}
 
     {{if .Cases}}
     <div class="card" style="margin-top: 1rem;">
