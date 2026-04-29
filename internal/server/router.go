@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"html/template"
+	"io/fs"
 	"net/http"
 	"strings"
 
@@ -10,6 +11,17 @@ import (
 	"github.com/falconleon/mock-salesforce/internal/server/middleware"
 	"github.com/falconleon/mock-salesforce/internal/store"
 )
+
+// staticHandler serves files from the embedded static FS at /static/.
+// The embedded FS preserves the "static/" directory prefix, so we
+// fs.Sub it before serving to align the FS root with the URL prefix.
+func staticHandler() http.Handler {
+	sub, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		return http.StripPrefix("/static/", http.FileServerFS(staticFS))
+	}
+	return http.StripPrefix("/static/", http.FileServerFS(sub))
+}
 
 // setupRoutes configures all HTTP routes for the mock API.
 func (s *Server) setupRoutes() http.Handler {
@@ -112,7 +124,7 @@ func (s *Server) setupRoutes() http.Handler {
 	})
 
 	// UI routes — Salesforce Lightning URL patterns
-	ui := NewUIHandler(s.store, basePath)
+	ui := NewUIHandler(s.store, basePath, s.config.SessionSecret)
 	mux.HandleFunc("GET /home", ui.Home)
 	mux.HandleFunc("GET /lightning/o/Case/list", ui.CaseList)
 	mux.HandleFunc("GET /lightning/r/Case/{id}/view", ui.CaseDetail)
@@ -127,7 +139,7 @@ func (s *Server) setupRoutes() http.Handler {
 	mux.HandleFunc("GET /lightning/r/User/{id}/view", ui.UserDetail)
 
 	// Static assets
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
+	mux.Handle("GET /static/", staticHandler())
 
 	// Query endpoint (supports multiple API versions)
 	mux.HandleFunc("GET /services/data/{version}/query", queryHandler.HandleQuery)
