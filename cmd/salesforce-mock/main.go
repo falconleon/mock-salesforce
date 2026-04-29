@@ -25,7 +25,9 @@ import (
 
 	"github.com/falconleon/mock-salesforce/internal/config"
 	"github.com/falconleon/mock-salesforce/internal/server"
+	"github.com/falconleon/mock-salesforce/internal/server/middleware"
 	"github.com/falconleon/mock-salesforce/internal/store"
+	"github.com/falconleon/mock-salesforce/internal/users"
 )
 
 func main() {
@@ -40,6 +42,7 @@ func main() {
 	baseURL := flag.String("base-url", envDefault("BASE_URL", ""), "Externally-reachable URL for OAuth instance_url (e.g. http://sf-mock:8080/mock/salesforce)")
 	mockUsers := flag.String("mock-users", envDefault("MOCK_USERS", ""), "Comma-separated email:password pairs")
 	sessionSecret := flag.String("session-secret", envDefault("SESSION_SECRET", "sf-mock-dev-secret"), "HMAC key for session cookies")
+	adminToken := flag.String("admin-token", envDefault("ADMIN_TOKEN", ""), "X-Admin-Token value for /admin/users endpoints; empty disables them")
 	flag.Parse()
 
 	// Configure logger
@@ -58,6 +61,7 @@ func main() {
 	}
 	cfg.MockUsers = config.ParseUsers(*mockUsers)
 	cfg.SessionSecret = *sessionSecret
+	cfg.AdminToken = *adminToken
 
 	// Log startup configuration
 	logger.Info().
@@ -113,8 +117,12 @@ func main() {
 		}
 	}
 
+	// Build the runtime user store for /admin/users CRUD + token mint.
+	// Persists to SQLite at <db-path>.users.db when -db-path is set.
+	userStore := buildUserStore(*dbPath, cfg.MockUsers, logger)
+
 	// Create and start server
-	srv := server.New(cfg, dataStore, logger)
+	srv := server.New(cfg, dataStore, userStore, logger)
 
 	// Start server in goroutine
 	go func() {
@@ -180,4 +188,43 @@ func envDefault(key, def string) string {
 		return v
 	}
 	return def
+}
+
+
+// buildUserStore constructs the runtime user store, seeds it from the
+// MOCK_USERS env var, and re-registers any persisted bearer tokens with
+// the OAuth validator so they remain valid across restarts.
+func buildUserStore(dbPath string, mockUsers map[string]string, logger zerolog.Logger) users.Store {
+	var store users.Store
+	if dbPath != "" {
+		usersDB := dbPath + ".users.db"
+		s, err := users.NewSQLiteStore(usersDB)
+		if err != nil {
+			logger.Warn().Err(err).Msg("user store SQLite open failed; falling back to in-memory")
+			store = users.NewMemoryStore()
+		} else {
+			logger.Info().Str("users_db", usersDB).Msg("Opened SQLite user store")
+			store = s
+		}
+	} else {
+		store = users.NewMemoryStore()
+	}
+	if err := users.SeedFromMap(store, mockUsers); err != nil {
+		logger.Warn().Err(err).Msg("failed to seed users from MOCK_USERS")
+	}
+	if toks, err := store.AllTokens(); err == nil {
+		for _, t := range toks {
+			info := &middleware.TokenInfo{
+				Token:    t.Token,
+				Type:     "access",
+				UserID:   t.UserID,
+				IssuedAt: t.CreatedAt.Unix(),
+			}
+			if !t.ExpiresAt.IsZero() {
+				info.ExpiresAt = t.ExpiresAt.Unix()
+			}
+			middleware.RegisterTokenInfo(info)
+		}
+	}
+	return store
 }

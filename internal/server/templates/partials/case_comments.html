@@ -1,0 +1,18 @@
+{{define "case_comments"}}
+{{if .Comments}}
+<div class="related-list" data-tab-content="comments">
+    {{range .Comments}}
+    <div class="comment-item">
+        <div class="comment-header">
+            <strong>{{userName (fieldStr . "CreatedById")}}</strong>
+            <span class="comment-date">{{fieldStr . "CreatedDate"}}</span>
+            {{if index . "IsPublished"}}<span class="badge badge-blue">Published</span>{{end}}
+        </div>
+        <div class="comment-body">{{fieldStr . "CommentBody"}}</div>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="related-empty" data-tab-content="comments">No case comments yet.</div>
+{{end}}
+{{end}}

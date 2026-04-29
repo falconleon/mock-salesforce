@@ -1,0 +1,18 @@
+{{define "case_emails"}}
+{{if .Emails}}
+<div class="related-list" data-tab-content="emails">
+    {{range .Emails}}
+    <div class="email-item">
+        <div class="email-header">
+            <strong>{{fieldStr . "FromAddress"}}</strong> &rarr; {{fieldStr . "ToAddress"}}
+            <span class="email-date">{{fieldStr . "MessageDate"}}</span>
+        </div>
+        <div class="email-subject">{{fieldStr . "Subject"}}</div>
+        <div class="email-body">{{fieldStr . "TextBody"}}</div>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="related-empty" data-tab-content="emails">No email messages on this case.</div>
+{{end}}
+{{end}}

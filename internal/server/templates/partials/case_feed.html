@@ -1,0 +1,32 @@
+{{define "case_feed"}}
+{{if .FeedItems}}
+<div class="related-list" data-tab-content="feed">
+    {{range .FeedItems}}
+    <div class="feed-item">
+        <div class="feed-header">
+            <strong>{{userName (fieldStr . "CreatedById")}}</strong>
+            <span class="feed-type">{{fieldStr . "Type"}}</span>
+            <span class="feed-date">{{fieldStr . "CreatedDate"}}</span>
+        </div>
+        {{with fieldStr . "Body"}}
+        <div class="feed-body">{{.}}</div>
+        {{end}}
+        {{$comments := index . "_Comments"}}
+        {{if $comments}}
+        <ul class="feed-comments">
+            {{range $comments}}
+            <li class="feed-comment">
+                <strong>{{userName (fieldStr . "CreatedById")}}</strong>
+                <span class="feed-comment-date">{{fieldStr . "CreatedDate"}}</span>
+                <div class="feed-comment-body">{{fieldStr . "CommentBody"}}</div>
+            </li>
+            {{end}}
+        </ul>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="related-empty" data-tab-content="feed">No feed activity on this case.</div>
+{{end}}
+{{end}}

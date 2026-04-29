@@ -1,0 +1,28 @@
+{{define "case_files"}}
+{{if .Files}}
+<div class="related-list" data-tab-content="files">
+    <table class="sf-table sf-table-compact">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Size</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Files}}
+            <tr>
+                <td>{{fieldStr . "Title"}}</td>
+                <td>{{fieldStr . "FileType"}}</td>
+                <td>{{humanBytes (index . "ContentSize")}}</td>
+                <td>{{fieldStr . "CreatedDate"}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div class="related-empty" data-tab-content="files">No files attached to this case.</div>
+{{end}}
+{{end}}

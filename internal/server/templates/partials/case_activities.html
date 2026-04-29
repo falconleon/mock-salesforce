@@ -1,0 +1,58 @@
+{{define "case_activities"}}
+{{if or .Tasks .Events}}
+<div class="related-list" data-tab-content="activities">
+    {{if .Tasks}}
+    <h4 class="related-subhead">Tasks</h4>
+    <table class="sf-table sf-table-compact">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Status</th>
+                <th>Priority</th>
+                <th>Due</th>
+                <th>Owner</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Tasks}}
+            <tr>
+                <td>{{fieldStr . "Subject"}}</td>
+                <td><span class="badge {{fieldStr . "Status" | statusClass}}">{{fieldStr . "Status"}}</span></td>
+                <td>{{fieldStr . "Priority"}}</td>
+                <td>{{fieldStr . "ActivityDate"}}</td>
+                <td>{{userName (fieldStr . "OwnerId")}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+    {{if .Events}}
+    <h4 class="related-subhead">Events</h4>
+    <table class="sf-table sf-table-compact">
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>When</th>
+                <th>Duration</th>
+                <th>Location</th>
+                <th>Owner</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Events}}
+            <tr>
+                <td>{{fieldStr . "Subject"}}</td>
+                <td>{{fieldStr . "ActivityDateTime"}}</td>
+                <td>{{if index . "DurationInMinutes"}}{{index . "DurationInMinutes"}} min{{end}}</td>
+                <td>{{fieldStr . "Location"}}</td>
+                <td>{{userName (fieldStr . "OwnerId")}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{end}}
+</div>
+{{else}}
+<div class="related-empty" data-tab-content="activities">No tasks or events on this case.</div>
+{{end}}
+{{end}}

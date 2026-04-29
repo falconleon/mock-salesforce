@@ -23,6 +23,7 @@ type Config struct {
 	BasePath         string
 	MockUsers        map[string]string // email -> password
 	SessionSecret    string
+	AdminToken       string // X-Admin-Token required for /admin/users; empty disables the endpoint
 }
 
 // Default returns a Config with default values.
@@ -105,6 +106,9 @@ func FromEnv() *Config {
 	}
 	if sessionSecret := os.Getenv("SESSION_SECRET"); sessionSecret != "" {
 		cfg.SessionSecret = sessionSecret
+	}
+	if adminToken := os.Getenv("ADMIN_TOKEN"); adminToken != "" {
+		cfg.AdminToken = adminToken
 	}
 
 	return cfg
