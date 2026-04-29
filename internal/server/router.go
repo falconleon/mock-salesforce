@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"html/template"
 	"net/http"
+	"strings"
 
 	"github.com/falconleon/mock-salesforce/internal/handlers"
 	"github.com/falconleon/mock-salesforce/internal/server/middleware"
@@ -29,45 +30,65 @@ func (s *Server) setupRoutes() http.Handler {
 	mux.HandleFunc("GET /health", healthHandler.HandleHealth)
 
 	basePath := s.config.BasePath
-	hasMultiUser := len(s.config.MockUsers) > 0
+	loginUsers := s.config.MockUsers
+	if len(loginUsers) == 0 && s.config.MockUsername != "" {
+		loginUsers = map[string]string{s.config.MockUsername: s.config.MockPassword}
+	}
 
-	// Root handler: login page when multi-user, redirect when single-user
+	// Root handler: redirect authenticated users to /home, others to /login.
 	loginTpl := template.Must(template.ParseFS(templateFS, "templates/login.html"))
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		// Capture falcon_return from query param
 		falconReturn := middleware.ExtractFalconReturn(r)
-
-		if hasMultiUser {
-			// Check if already authenticated via session cookie
-			if _, ok := middleware.ValidateSession(r, s.config.SessionSecret); ok {
-				// If authenticated and falcon_return present, store it in cookie
-				if falconReturn != "" {
-					middleware.SetFalconReturnCookie(w, falconReturn)
-				}
-				http.Redirect(w, r, basePath+"/lightning/o/Case/list", http.StatusFound)
-				return
-			}
-			// Show login form
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			loginTpl.ExecuteTemplate(w, "login", map[string]any{
-				"BasePath":     basePath,
-				"Error":        r.URL.Query().Get("error") != "",
-				"FalconReturn": falconReturn,
-			})
-			return
-		}
-		// Single-user mode: store falcon_return if present
 		if falconReturn != "" {
 			middleware.SetFalconReturnCookie(w, falconReturn)
 		}
-		http.Redirect(w, r, basePath+"/lightning/o/Case/list", http.StatusFound)
+		if _, ok := middleware.ValidateSession(r, s.config.SessionSecret); ok {
+			http.Redirect(w, r, basePath+"/home", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, basePath+"/login", http.StatusFound)
 	})
 
-	// Login endpoint for UI session auth
-	if hasMultiUser {
+	// Login form
+	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
+		falconReturn := middleware.ExtractFalconReturn(r)
+		if falconReturn != "" {
+			middleware.SetFalconReturnCookie(w, falconReturn)
+		}
+		// If already authenticated, jump straight to next or /home.
+		if _, ok := middleware.ValidateSession(r, s.config.SessionSecret); ok {
+			next := r.URL.Query().Get("next")
+			if next != "" && strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
+				http.Redirect(w, r, basePath+next, http.StatusFound)
+				return
+			}
+			http.Redirect(w, r, basePath+"/home", http.StatusFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = loginTpl.ExecuteTemplate(w, "login", map[string]any{
+			"BasePath":     basePath,
+			"Error":        r.URL.Query().Get("error") != "",
+			"FalconReturn": falconReturn,
+			"Next":         r.URL.Query().Get("next"),
+		})
+	})
+
+	// Login + logout endpoints for UI session auth.
+	if len(loginUsers) > 0 {
 		mux.Handle("POST /login", middleware.LoginHandler(
-			s.config.MockUsers, s.config.SessionSecret, basePath,
+			loginUsers, s.config.SessionSecret, basePath,
 		))
+	}
+	mux.Handle("GET /logout", middleware.LogoutHandler(basePath))
+
+	// Admin user CRUD + per-user token issuance (gated by X-Admin-Token).
+	if s.userStore != nil {
+		adminUsers := handlers.NewAdminUsersHandler(s.userStore, s.config.AdminToken, s.logger)
+		mux.HandleFunc("/admin/users", adminUsers.HandleUsers)
+		mux.HandleFunc("/admin/users/{id}", adminUsers.HandleUser)
+		mux.HandleFunc("/admin/users/{id}/tokens", adminUsers.HandleTokens)
+		mux.HandleFunc("/admin/users/{id}/tokens/{tokenId}", adminUsers.HandleToken)
 	}
 
 	// Admin endpoints (no auth required)
@@ -92,10 +113,18 @@ func (s *Server) setupRoutes() http.Handler {
 
 	// UI routes — Salesforce Lightning URL patterns
 	ui := NewUIHandler(s.store, basePath)
+	mux.HandleFunc("GET /home", ui.Home)
 	mux.HandleFunc("GET /lightning/o/Case/list", ui.CaseList)
 	mux.HandleFunc("GET /lightning/r/Case/{id}/view", ui.CaseDetail)
+	mux.HandleFunc("GET /lightning/r/Case/{id}/related/emails", ui.CaseEmailsPartial)
+	mux.HandleFunc("GET /lightning/r/Case/{id}/related/comments", ui.CaseCommentsPartial)
+	mux.HandleFunc("GET /lightning/r/Case/{id}/related/feed", ui.CaseFeedPartial)
+	mux.HandleFunc("GET /lightning/r/Case/{id}/related/activities", ui.CaseActivitiesPartial)
+	mux.HandleFunc("GET /lightning/r/Case/{id}/related/files", ui.CaseFilesPartial)
 	mux.HandleFunc("GET /lightning/o/Account/list", ui.AccountList)
 	mux.HandleFunc("GET /lightning/r/Account/{id}/view", ui.AccountDetail)
+	mux.HandleFunc("GET /lightning/r/Contact/{id}/view", ui.ContactDetail)
+	mux.HandleFunc("GET /lightning/r/User/{id}/view", ui.UserDetail)
 
 	// Static assets
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticFS)))

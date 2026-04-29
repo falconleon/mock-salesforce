@@ -3,22 +3,23 @@ package middleware
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog"
 
 	"github.com/falconleon/mock-salesforce/pkg/models"
 )
 
-const sessionCookieName = "sf_session"
+const (
+	sessionCookieName = "sf_session"
+	sessionDuration   = 12 * time.Hour
+)
 
 // publicPaths are paths that don't require authentication.
 // Endpoints that perform their own auth (revoke/introspect) or are
@@ -30,6 +31,7 @@ var publicPaths = map[string]bool{
 	"/health":                     true,
 	"/":                           true,
 	"/login":                      true,
+	"/logout":                     true,
 }
 
 // TokenInfo carries metadata about an issued OAuth token. Used by the
@@ -114,8 +116,8 @@ func Auth(logger zerolog.Logger, sessionSecret string) func(http.Handler) http.H
 			}
 
 			// Try session cookie first (for UI browsing)
-			if email, ok := validateSessionCookie(r, sessionSecret); ok {
-				ctx := context.WithValue(r.Context(), contextKeyAuthUser, email)
+			if claims, ok := validateSessionCookie(r, sessionSecret); ok {
+				ctx := context.WithValue(r.Context(), contextKeyAuthUser, claims.Email)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -125,7 +127,11 @@ func Auth(logger zerolog.Logger, sessionSecret string) func(http.Handler) http.H
 			if strings.HasPrefix(authHeader, "Bearer ") {
 				token := strings.TrimPrefix(authHeader, "Bearer ")
 				if info := LookupToken(token); info != nil && info.Type != "refresh" {
-					SetSessionCookie(w, "bearer-user", sessionSecret)
+					username := info.Username
+					if username == "" {
+						username = "bearer-user"
+					}
+					SetSessionCookie(w, username, sessionSecret)
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -133,9 +139,20 @@ func Auth(logger zerolog.Logger, sessionSecret string) func(http.Handler) http.H
 
 			// Auth failed
 			if isHTMLRequest(r) {
-				redirectURL := "/"
+				params := url.Values{}
+				if r.URL.Path != "" && r.URL.Path != "/" {
+					nextURL := r.URL.Path
+					if r.URL.RawQuery != "" {
+						nextURL += "?" + r.URL.RawQuery
+					}
+					params.Set("next", nextURL)
+				}
 				if fr := ExtractFalconReturn(r); fr != "" {
-					redirectURL = "/?falcon_return=" + url.QueryEscape(fr)
+					params.Set(falconReturnParam, fr)
+				}
+				redirectURL := "/login"
+				if encoded := params.Encode(); encoded != "" {
+					redirectURL += "?" + encoded
 				}
 				http.Redirect(w, r, redirectURL, http.StatusFound)
 				return
@@ -149,45 +166,72 @@ type contextKey string
 
 const contextKeyAuthUser contextKey = "auth_user"
 
-// SetSessionCookie creates a signed session cookie.
+// SetSessionCookie mints an HS256 JWT for the given email and writes it
+// as the sf_session cookie. Sub/Name are derived from email when not
+// supplied externally; expiry is sessionDuration.
 func SetSessionCookie(w http.ResponseWriter, email, secret string) {
-	sig := signSession(email, secret)
+	now := time.Now()
+	claims := SessionClaims{
+		Sub:   email,
+		Name:  email,
+		Email: email,
+		Iat:   now.Unix(),
+		Exp:   now.Add(sessionDuration).Unix(),
+	}
+	tok, err := MintSessionJWT(claims, secret)
+	if err != nil {
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
-		Value:    email + "|" + sig,
+		Value:    tok,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   3600 * 8, // 8 hours
+		MaxAge:   int(sessionDuration / time.Second),
 	})
 }
 
-func signSession(email, secret string) string {
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(email))
-	return hex.EncodeToString(mac.Sum(nil))
+// ClearSessionCookie expires the sf_session cookie at the browser.
+func ClearSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
 }
 
-// ValidateSession checks if the request has a valid session cookie.
+// ValidateSession reports whether the request carries a valid session
+// cookie, returning the authenticated email on success. Retained for
+// callers that only care about the email; use ValidateSessionClaims
+// when full claim access is required.
 func ValidateSession(r *http.Request, secret string) (string, bool) {
+	c, ok := validateSessionCookie(r, secret)
+	if !ok {
+		return "", false
+	}
+	return c.Email, true
+}
+
+// ValidateSessionClaims returns the full decoded claim set for a valid
+// sf_session cookie, or false if the cookie is missing/invalid/expired.
+func ValidateSessionClaims(r *http.Request, secret string) (*SessionClaims, bool) {
 	return validateSessionCookie(r, secret)
 }
 
-func validateSessionCookie(r *http.Request, secret string) (string, bool) {
+func validateSessionCookie(r *http.Request, secret string) (*SessionClaims, bool) {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
-		return "", false
+		return nil, false
 	}
-	parts := strings.SplitN(cookie.Value, "|", 2)
-	if len(parts) != 2 {
-		return "", false
+	claims, err := ParseSessionJWT(cookie.Value, secret)
+	if err != nil {
+		return nil, false
 	}
-	email, sig := parts[0], parts[1]
-	expected := signSession(email, secret)
-	if !hmac.Equal([]byte(sig), []byte(expected)) {
-		return "", false
-	}
-	return email, true
+	return claims, true
 }
 
 func isHTMLRequest(r *http.Request) bool {
@@ -212,7 +256,9 @@ func writeAuthError(w http.ResponseWriter, logger zerolog.Logger, msg string) {
 	json.NewEncoder(w).Encode(errors)
 }
 
-// LoginHandler handles POST /login for UI session auth.
+// LoginHandler handles POST /login for UI session auth. On success it
+// mints a JWT session cookie and redirects to ?next=<path> when that
+// is a same-origin relative path, or /home otherwise.
 func LoginHandler(users map[string]string, sessionSecret, basePath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -222,26 +268,55 @@ func LoginHandler(users map[string]string, sessionSecret, basePath string) http.
 		email := r.FormValue("email")
 		password := r.FormValue("password")
 		falconReturn := ValidateFalconReturn(r.FormValue(falconReturnParam))
+		next := sanitizeNext(r.FormValue("next"))
 
-		// Validate against multi-user store
 		expected, ok := users[email]
 		if !ok || subtle.ConstantTimeCompare([]byte(expected), []byte(password)) != 1 {
-			redirectURL := basePath + "/?error=invalid"
-			if falconReturn != "" {
-				redirectURL += "&falcon_return=" + url.QueryEscape(falconReturn)
+			params := url.Values{}
+			params.Set("error", "invalid")
+			if next != "" {
+				params.Set("next", next)
 			}
-			http.Redirect(w, r, redirectURL, http.StatusFound)
+			if falconReturn != "" {
+				params.Set(falconReturnParam, falconReturn)
+			}
+			http.Redirect(w, r, basePath+"/login?"+params.Encode(), http.StatusFound)
 			return
 		}
 
 		SetSessionCookie(w, email, sessionSecret)
 
-		// Store falcon_return in cookie if present
 		if falconReturn != "" {
 			SetFalconReturnCookie(w, falconReturn)
 		}
 
-		// Redirect to case list
-		http.Redirect(w, r, basePath+"/lightning/o/Case/list", http.StatusFound)
+		dest := basePath + "/home"
+		if next != "" {
+			dest = basePath + next
+		}
+		http.Redirect(w, r, dest, http.StatusFound)
 	}
+}
+
+// LogoutHandler clears the session cookie and redirects to /login.
+func LogoutHandler(basePath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ClearSessionCookie(w)
+		http.Redirect(w, r, basePath+"/login", http.StatusFound)
+	}
+}
+
+// sanitizeNext rejects absolute URLs and protocol-relative paths so the
+// next parameter cannot be used as an open redirect.
+func sanitizeNext(s string) string {
+	if s == "" {
+		return ""
+	}
+	if !strings.HasPrefix(s, "/") {
+		return ""
+	}
+	if strings.HasPrefix(s, "//") {
+		return ""
+	}
+	return s
 }
