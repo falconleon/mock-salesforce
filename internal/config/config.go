@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -44,23 +45,39 @@ func Default() *Config {
 }
 
 // ParseUsers parses a comma-separated list of email:password pairs.
-func ParseUsers(s string) map[string]string {
+// Returns an error if any entry is malformed (missing colon, empty email,
+// empty password, or empty entry between separators). An empty input
+// yields an empty map without error.
+func ParseUsers(s string) (map[string]string, error) {
 	users := make(map[string]string)
-	if s == "" {
-		return users
+	if strings.TrimSpace(s) == "" {
+		return users, nil
 	}
-	for _, pair := range strings.Split(s, ",") {
+	for i, pair := range strings.Split(s, ",") {
 		pair = strings.TrimSpace(pair)
-		parts := strings.SplitN(pair, ":", 2)
-		if len(parts) == 2 {
-			users[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		if pair == "" {
+			return nil, fmt.Errorf("ParseUsers: entry %d is empty", i)
 		}
+		parts := strings.SplitN(pair, ":", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("ParseUsers: entry %d %q missing ':' separator", i, pair)
+		}
+		email := strings.TrimSpace(parts[0])
+		password := strings.TrimSpace(parts[1])
+		if email == "" {
+			return nil, fmt.Errorf("ParseUsers: entry %d has empty email", i)
+		}
+		if password == "" {
+			return nil, fmt.Errorf("ParseUsers: entry %d has empty password for %q", i, email)
+		}
+		users[email] = password
 	}
-	return users
+	return users, nil
 }
 
 // FromEnv creates a Config from environment variables, falling back to defaults.
-func FromEnv() *Config {
+// Returns an error if MOCK_USERS is set but malformed.
+func FromEnv() (*Config, error) {
 	cfg := Default()
 
 	if port := os.Getenv("PORT"); port != "" {
@@ -102,7 +119,11 @@ func FromEnv() *Config {
 		cfg.BasePath = strings.TrimRight(basePath, "/")
 	}
 	if mockUsers := os.Getenv("MOCK_USERS"); mockUsers != "" {
-		cfg.MockUsers = ParseUsers(mockUsers)
+		parsed, err := ParseUsers(mockUsers)
+		if err != nil {
+			return nil, fmt.Errorf("MOCK_USERS: %w", err)
+		}
+		cfg.MockUsers = parsed
 	}
 	if sessionSecret := os.Getenv("SESSION_SECRET"); sessionSecret != "" {
 		cfg.SessionSecret = sessionSecret
@@ -111,5 +132,5 @@ func FromEnv() *Config {
 		cfg.AdminToken = adminToken
 	}
 
-	return cfg
+	return cfg, nil
 }

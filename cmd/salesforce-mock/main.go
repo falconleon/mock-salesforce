@@ -59,7 +59,11 @@ func main() {
 	if *baseURL != "" {
 		cfg.BaseURL = strings.TrimRight(*baseURL, "/")
 	}
-	cfg.MockUsers = config.ParseUsers(*mockUsers)
+	parsedUsers, err := config.ParseUsers(*mockUsers)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Invalid MOCK_USERS / -mock-users value")
+	}
+	cfg.MockUsers = parsedUsers
 	cfg.SessionSecret = *sessionSecret
 	cfg.AdminToken = *adminToken
 

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -50,6 +51,77 @@ func NewPlaygroundHandler(s store.Store, basePath, sessionSecret string) *Playgr
 
 // Page renders the SOQL playground page shell (form + examples + empty results).
 func (h *PlaygroundHandler) Page(w http.ResponseWriter, r *http.Request) {
+	h.renderPage(w, r, r.URL.Query().Get("q"), template.HTML(""))
+}
+
+// Run executes a SOQL query and renders the results. HTMX requests
+// (HX-Request: true) receive just the playground_results partial for
+// in-page swap; plain form submissions get the full playground page
+// with the results rendered inline so the form works without JavaScript.
+func (h *PlaygroundHandler) Run(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		h.renderError(w, r, "MALFORMED_QUERY", err.Error(), 0)
+		return
+	}
+	q := r.FormValue("q")
+	if q == "" {
+		h.renderError(w, r, "MALFORMED_QUERY", "Missing query", 0)
+		return
+	}
+
+	start := time.Now()
+	stmt, err := soql.NewParser(q).Parse()
+	if err != nil {
+		h.renderError(w, r, "MALFORMED_QUERY", err.Error(), time.Since(start))
+		return
+	}
+	result, err := soql.NewExecutor(h.store).Execute(stmt)
+	if err != nil {
+		h.renderError(w, r, "QUERY_ERROR", err.Error(), time.Since(start))
+		return
+	}
+
+	headers, rows := projectPlaygroundRows(stmt.Fields, result.Records)
+	h.renderResults(w, r, q, map[string]any{
+		"TotalSize": result.TotalSize,
+		"Elapsed":   time.Since(start).String(),
+		"Headers":   headers,
+		"Rows":      rows,
+	})
+}
+
+func (h *PlaygroundHandler) renderError(w http.ResponseWriter, r *http.Request, code, msg string, elapsed time.Duration) {
+	h.renderResults(w, r, r.FormValue("q"), map[string]any{
+		"Error":     msg,
+		"ErrorCode": code,
+		"Elapsed":   elapsed.String(),
+	})
+}
+
+// isHTMXRequest reports whether the request originated from an HTMX swap
+// rather than a plain browser form submission or navigation.
+func isHTMXRequest(r *http.Request) bool {
+	return r.Header.Get("HX-Request") == "true"
+}
+
+// renderResults emits the playground_results partial. For HTMX swaps it
+// writes the partial directly; otherwise it re-renders the full
+// playground page with the results embedded so the page is usable
+// without JavaScript.
+func (h *PlaygroundHandler) renderResults(w http.ResponseWriter, r *http.Request, q string, data map[string]any) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if isHTMXRequest(r) {
+		_ = h.resultsTpl.ExecuteTemplate(w, "playground_results", data)
+		return
+	}
+	var buf bytes.Buffer
+	_ = h.resultsTpl.ExecuteTemplate(&buf, "playground_results", data)
+	h.renderPage(w, r, q, template.HTML(buf.String()))
+}
+
+// renderPage writes the full playground page with an optional pre-rendered
+// results block embedded in the results card.
+func (h *PlaygroundHandler) renderPage(w http.ResponseWriter, r *http.Request, q string, results template.HTML) {
 	currentUser := ""
 	if h.sessionSecret != "" {
 		if email, ok := middleware.ValidateSession(r, h.sessionSecret); ok {
@@ -60,51 +132,9 @@ func (h *PlaygroundHandler) Page(w http.ResponseWriter, r *http.Request) {
 		"Title":       "SOQL Playground",
 		"BasePath":    h.basePath,
 		"CurrentUser": currentUser,
-		"Query":       r.URL.Query().Get("q"),
+		"Query":       q,
 		"Examples":    playgroundExamples,
-	})
-}
-
-// Run executes a SOQL query and renders the results partial.
-func (h *PlaygroundHandler) Run(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		h.renderError(w, "MALFORMED_QUERY", err.Error(), 0)
-		return
-	}
-	q := r.FormValue("q")
-	if q == "" {
-		h.renderError(w, "MALFORMED_QUERY", "Missing query", 0)
-		return
-	}
-
-	start := time.Now()
-	stmt, err := soql.NewParser(q).Parse()
-	if err != nil {
-		h.renderError(w, "MALFORMED_QUERY", err.Error(), time.Since(start))
-		return
-	}
-	result, err := soql.NewExecutor(h.store).Execute(stmt)
-	if err != nil {
-		h.renderError(w, "QUERY_ERROR", err.Error(), time.Since(start))
-		return
-	}
-
-	headers, rows := projectPlaygroundRows(stmt.Fields, result.Records)
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = h.resultsTpl.ExecuteTemplate(w, "playground_results", map[string]any{
-		"TotalSize": result.TotalSize,
-		"Elapsed":   time.Since(start).String(),
-		"Headers":   headers,
-		"Rows":      rows,
-	})
-}
-
-func (h *PlaygroundHandler) renderError(w http.ResponseWriter, code, msg string, elapsed time.Duration) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = h.resultsTpl.ExecuteTemplate(w, "playground_results", map[string]any{
-		"Error":     msg,
-		"ErrorCode": code,
-		"Elapsed":   elapsed.String(),
+		"Results":     results,
 	})
 }
 

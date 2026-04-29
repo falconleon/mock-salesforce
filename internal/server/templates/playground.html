@@ -8,6 +8,8 @@
         <div class="card">
             <h3>Query</h3>
             <form id="playground-form"
+                  method="post"
+                  action="{{basePath}}/playground/run"
                   hx-post="{{basePath}}/playground/run"
                   hx-target="#playground-results"
                   hx-swap="innerHTML">
@@ -22,7 +24,7 @@
         <div class="card">
             <h3>Results</h3>
             <div id="playground-results">
-                <div class="related-empty">Run a query to see results.</div>
+                {{if .Results}}{{.Results}}{{else}}<div class="related-empty">Run a query to see results.</div>{{end}}
             </div>
         </div>
     </div>
@@ -31,17 +33,11 @@
             <h3>Examples</h3>
             <ul class="playground-examples">
                 {{range .Examples}}
-                <li><a href="#" data-q="{{.}}" onclick="sfPlaygroundLoad(this); return false;">{{.}}</a></li>
+                <li><a href="{{basePath}}/playground?q={{.}}">{{.}}</a></li>
                 {{end}}
             </ul>
         </div>
     </div>
 </div>
 <script src="{{basePath}}/static/htmx.min.js"></script>
-<script>
-function sfPlaygroundLoad(el) {
-    var ta = document.getElementById('playground-q');
-    if (ta) { ta.value = el.getAttribute('data-q'); ta.focus(); }
-}
-</script>
 {{end}}
