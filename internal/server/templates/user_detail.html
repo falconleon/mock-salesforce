@@ -1,0 +1,94 @@
+{{template "layout" .}}
+{{define "content"}}
+<div class="breadcrumb">
+    <a href="{{basePath}}/home">Home</a> &gt;
+    <span>Settings</span> &gt;
+    <a href="{{basePath}}/settings/users">Users</a> &gt;
+    <span>{{.User.Username}}</span>
+</div>
+
+<div class="page-header">
+    <h1>{{.User.Username}}</h1>
+    {{if .User.Name}}<span class="count-badge">{{.User.Name}}</span>{{end}}
+</div>
+
+{{if .Error}}<div class="card" style="border-color:#c23934;color:#c23934;">{{.Error}}</div>{{end}}
+
+{{if .NewToken.Token}}
+<div class="card" style="border-color:#2e844a;background:#effaf0;">
+    <h3>Token Minted — Copy Now</h3>
+    <p>This is the only time the plaintext token will be shown. Copy it before leaving this page.</p>
+    <pre style="background:#fff;padding:0.75rem;border:1px solid #cdefc8;border-radius:4px;word-break:break-all;white-space:pre-wrap;"><code>{{.NewToken.Token}}</code></pre>
+    <dl class="field-list">
+        <dt>Token ID</dt><dd>{{.NewToken.ID}}</dd>
+        <dt>Label</dt><dd>{{.NewToken.Label}}</dd>
+        <dt>Created</dt><dd>{{fmtTime .NewToken.CreatedAt}}</dd>
+        <dt>Expires</dt><dd>{{if .NewToken.ExpiresAt.IsZero}}never{{else}}{{fmtTime .NewToken.ExpiresAt}}{{end}}</dd>
+    </dl>
+</div>
+{{end}}
+
+<div class="card" style="margin-top:1rem;">
+    <h3>Edit User</h3>
+    <form method="POST" action="{{basePath}}/settings/users/{{.User.ID}}" class="settings-form">
+        <label>Username (email)
+            <input type="text" name="username" value="{{.User.Username}}" required>
+        </label>
+        <label>Name
+            <input type="text" name="name" value="{{.User.Name}}">
+        </label>
+        <label>Email
+            <input type="email" name="email" value="{{.User.Email}}">
+        </label>
+        <label>Password (leave blank to keep current)
+            <input type="password" name="password">
+        </label>
+        <button type="submit">Save Changes</button>
+    </form>
+</div>
+
+<div class="card" style="margin-top:1rem;">
+    <h3>API Tokens ({{len .Tokens}})</h3>
+    <form method="POST" action="{{basePath}}/settings/users/{{.User.ID}}/tokens" class="settings-form">
+        <label>Label
+            <input type="text" name="label" placeholder="ci-runner">
+        </label>
+        <label>TTL seconds (0 = never expires)
+            <input type="number" name="ttl_seconds" value="0" min="0">
+        </label>
+        <button type="submit">Mint Token</button>
+    </form>
+    {{if .Tokens}}
+    <table class="sf-table" style="margin-top:0.75rem;">
+        <thead>
+            <tr><th>Label</th><th>Created</th><th>Expires</th><th></th></tr>
+        </thead>
+        <tbody>
+            {{range .Tokens}}
+            <tr class="sf-row">
+                <td>{{if .Label}}{{.Label}}{{else}}<em>(no label)</em>{{end}}</td>
+                <td>{{fmtTime .CreatedAt}}</td>
+                <td>{{if .ExpiresAt.IsZero}}never{{else}}{{fmtTime .ExpiresAt}}{{end}}</td>
+                <td>
+                    <form method="POST" action="{{basePath}}/settings/users/{{.UserID}}/tokens/{{.ID}}/revoke" style="display:inline;">
+                        <button type="submit" class="badge badge-red" style="border:none;cursor:pointer;">Revoke</button>
+                    </form>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="related-empty" style="margin-top:0.75rem;">No tokens yet. Mint one above to grant API access on behalf of this user.</p>
+    {{end}}
+</div>
+
+<div class="card" style="margin-top:1rem;border-color:#c23934;">
+    <h3 style="color:#c23934;">Danger Zone</h3>
+    <p>Deleting this user revokes all of their tokens immediately.</p>
+    <form method="POST" action="{{basePath}}/settings/users/{{.User.ID}}" onsubmit="return confirm('Delete user {{.User.Username}}? This cannot be undone.');">
+        <input type="hidden" name="_action" value="delete">
+        <button type="submit" class="badge badge-red" style="border:none;cursor:pointer;padding:0.5rem 1rem;">Delete User</button>
+    </form>
+</div>
+{{end}}

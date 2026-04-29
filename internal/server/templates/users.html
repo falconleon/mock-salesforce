@@ -1,0 +1,57 @@
+{{template "layout" .}}
+{{define "content"}}
+<div class="breadcrumb">
+    <a href="{{basePath}}/home">Home</a> &gt;
+    <span>Settings</span> &gt;
+    <span>Users</span>
+</div>
+<div class="page-header">
+    <h1>Users</h1>
+    <span class="count-badge">{{.Total}} items</span>
+</div>
+
+{{if .Error}}<div class="card" style="border-color:#c23934;color:#c23934;">{{.Error}}</div>{{end}}
+
+<div class="card">
+    <h3>Create User</h3>
+    <form method="POST" action="{{basePath}}/settings/users" class="settings-form">
+        <label>Username (email)
+            <input type="text" name="username" value="{{index .Form "username"}}" required>
+        </label>
+        <label>Name
+            <input type="text" name="name" value="{{index .Form "name"}}">
+        </label>
+        <label>Email
+            <input type="email" name="email" value="{{index .Form "email"}}">
+        </label>
+        <label>Password
+            <input type="password" name="password" required>
+        </label>
+        <button type="submit">Create User</button>
+    </form>
+</div>
+
+<div class="card" style="margin-top:1rem;">
+    <h3>All Users ({{.Total}})</h3>
+    {{if .Users}}
+    <table class="sf-table">
+        <thead>
+            <tr><th>Username</th><th>Name</th><th>Email</th><th>Created</th><th></th></tr>
+        </thead>
+        <tbody>
+            {{range .Users}}
+            <tr class="sf-row">
+                <td><a href="{{basePath}}/settings/users/{{.ID}}">{{.Username}}</a></td>
+                <td>{{.Name}}</td>
+                <td>{{.Email}}</td>
+                <td>{{fmtTime .CreatedAt}}</td>
+                <td><a href="{{basePath}}/settings/users/{{.ID}}">Manage</a></td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="related-empty">No users yet — create the first one above.</p>
+    {{end}}
+</div>
+{{end}}

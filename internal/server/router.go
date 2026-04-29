@@ -101,7 +101,25 @@ func (s *Server) setupRoutes() http.Handler {
 		mux.HandleFunc("/admin/users/{id}", adminUsers.HandleUser)
 		mux.HandleFunc("/admin/users/{id}/tokens", adminUsers.HandleTokens)
 		mux.HandleFunc("/admin/users/{id}/tokens/{tokenId}", adminUsers.HandleToken)
+
+		// Browser-facing settings pages for the same user store. Uses the
+		// session-cookie auth path (gated by the global Auth middleware)
+		// so admins can manage users without juggling X-Admin-Token in a
+		// browser.
+		settingsUsers := NewSettingsUsersHandler(s.userStore, basePath, s.config.SessionSecret)
+		mux.HandleFunc("/settings/users", settingsUsers.HandleList)
+		mux.HandleFunc("/settings/users/{id}", settingsUsers.HandleDetail)
+		mux.HandleFunc("/settings/users/{id}/tokens", settingsUsers.HandleTokens)
+		mux.HandleFunc("/settings/users/{id}/tokens/{tokenId}/revoke", settingsUsers.HandleTokenRevoke)
 	}
+
+	// Settings / Profile page exposing the OAuth client credentials with
+	// an eyeball toggle for the secret. The hidden/shown partials are
+	// served as separate routes so HTMX can swap between them.
+	settings := NewSettingsHandler(s.config.MockClientID, s.config.MockClientSecret, basePath, s.config.SessionSecret)
+	mux.HandleFunc("GET /settings", settings.HandlePage)
+	mux.HandleFunc("GET /settings/secret/shown", settings.HandleSecretShown)
+	mux.HandleFunc("GET /settings/secret/hidden", settings.HandleSecretHidden)
 
 	// Admin endpoints (no auth required)
 	mux.HandleFunc("POST /admin/reset", func(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +155,11 @@ func (s *Server) setupRoutes() http.Handler {
 	mux.HandleFunc("GET /lightning/r/Account/{id}/view", ui.AccountDetail)
 	mux.HandleFunc("GET /lightning/r/Contact/{id}/view", ui.ContactDetail)
 	mux.HandleFunc("GET /lightning/r/User/{id}/view", ui.UserDetail)
+
+	// SOQL playground UI — exercises the same executor used by the REST query API.
+	playground := NewPlaygroundHandler(s.store, basePath, s.config.SessionSecret)
+	mux.HandleFunc("GET /playground", playground.Page)
+	mux.HandleFunc("POST /playground/run", playground.Run)
 
 	// Static assets
 	mux.Handle("GET /static/", staticHandler())
