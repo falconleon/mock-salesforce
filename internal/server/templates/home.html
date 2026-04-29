@@ -11,6 +11,7 @@
             <th>Industry</th>
             <th>Type</th>
             <th>Phone</th>
+            <th>Open Cases</th>
         </tr>
     </thead>
     <tbody>
@@ -20,6 +21,7 @@
             <td>{{fieldStr . "Industry"}}</td>
             <td>{{fieldStr . "Type"}}</td>
             <td>{{fieldStr . "Phone"}}</td>
+            <td class="open-cases-cell">{{intField . "_OpenCases"}}</td>
         </tr>
         {{end}}
     </tbody>

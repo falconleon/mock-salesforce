@@ -35,6 +35,7 @@ func NewMemoryStore() *MemoryStore {
 			"Event":           {"WhoId", "WhatId"},
 			"ContentVersion":  {"ContentDocumentId"},
 			"Contact":         {"AccountId"},
+			"Case":            {"AccountId"},
 		},
 	}
 }

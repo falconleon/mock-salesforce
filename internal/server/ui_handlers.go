@@ -1,14 +1,31 @@
 package server
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"html/template"
 	"net/http"
 	"sort"
 
+	"github.com/falconleon/mock-salesforce/internal/server/middleware"
 	"github.com/falconleon/mock-salesforce/internal/store"
 )
+
+// caseTabs lists the related-list tabs rendered on the case detail page,
+// in display order. The first entry is the default when no ?tab= is given.
+var caseTabs = []string{"emails", "comments", "feed", "activities", "files"}
+
+// resolveCaseTab normalises the ?tab= query parameter against caseTabs,
+// returning the default tab when the value is empty or unrecognised.
+func resolveCaseTab(v string) string {
+	for _, t := range caseTabs {
+		if t == v {
+			return t
+		}
+	}
+	return caseTabs[0]
+}
 
 //go:embed templates/*.html templates/partials/*.html
 var templateFS embed.FS
@@ -20,6 +37,7 @@ var staticFS embed.FS
 type UIHandler struct {
 	store          store.Store
 	basePath       string
+	sessionSecret  string
 	caseListTpl    *template.Template
 	caseTpl        *template.Template
 	accountTpl     *template.Template
@@ -31,7 +49,8 @@ type UIHandler struct {
 }
 
 // NewUIHandler creates a UIHandler with parsed templates and template functions.
-func NewUIHandler(s store.Store, basePath string) *UIHandler {
+// sessionSecret is used to decode the sf_session cookie for nav user display.
+func NewUIHandler(s store.Store, basePath string, sessionSecret string) *UIHandler {
 	funcMap := template.FuncMap{
 		"statusClass": func(s string) string {
 			switch s {
@@ -66,6 +85,21 @@ func NewUIHandler(s store.Store, basePath string) *UIHandler {
 				}
 			}
 			return ""
+		},
+		"intField": func(r store.Record, key string) int {
+			v, ok := r[key]
+			if !ok {
+				return 0
+			}
+			switch x := v.(type) {
+			case int:
+				return x
+			case int64:
+				return int(x)
+			case float64:
+				return int(x)
+			}
+			return 0
 		},
 		"userName": func(userID string) string {
 			if userID == "" {
@@ -121,6 +155,7 @@ func NewUIHandler(s store.Store, basePath string) *UIHandler {
 	return &UIHandler{
 		store:          s,
 		basePath:       basePath,
+		sessionSecret:  sessionSecret,
 		caseListTpl:    caseListTpl,
 		caseTpl:        caseTpl,
 		accountTpl:     accountTpl,
@@ -130,6 +165,26 @@ func NewUIHandler(s store.Store, basePath string) *UIHandler {
 		userTpl:        userTpl,
 		casePartialTpl: casePartialTpl,
 	}
+}
+
+// currentUser returns the authenticated user's email from the session
+// cookie, or "" if no valid session is present.
+func (h *UIHandler) currentUser(r *http.Request) string {
+	if h.sessionSecret == "" {
+		return ""
+	}
+	email, _ := middleware.ValidateSession(r, h.sessionSecret)
+	return email
+}
+
+// isOpenCaseStatus reports whether a Case Status string represents an
+// open (not yet resolved) case. Closed and Resolved are terminal.
+func isOpenCaseStatus(status string) bool {
+	switch status {
+	case "Closed", "Resolved":
+		return false
+	}
+	return true
 }
 
 // CaseList renders the cases list page.
@@ -162,10 +217,11 @@ func (h *UIHandler) CaseList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.caseListTpl.ExecuteTemplate(w, "case_list.html", map[string]any{
-		"Cases":    cases,
-		"Title":    "Salesforce — Cases",
-		"Total":    len(cases),
-		"BasePath": h.basePath,
+		"Cases":       cases,
+		"Title":       "Salesforce — Cases",
+		"Total":       len(cases),
+		"BasePath":    h.basePath,
+		"CurrentUser": h.currentUser(r),
 	})
 }
 
@@ -310,6 +366,21 @@ func (h *UIHandler) CaseDetail(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	activeTab := resolveCaseTab(r.URL.Query().Get("tab"))
+	var tabBuf bytes.Buffer
+	switch activeTab {
+	case "comments":
+		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_comments", map[string]any{"Comments": comments})
+	case "feed":
+		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_feed", map[string]any{"FeedItems": feedItems})
+	case "activities":
+		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_activities", map[string]any{"Tasks": tasks, "Events": events})
+	case "files":
+		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_files", map[string]any{"Files": files})
+	default:
+		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_emails", map[string]any{"Emails": emails})
+	}
+
 	h.caseTpl.ExecuteTemplate(w, "case.html", map[string]any{
 		"Case":            caseRec,
 		"Emails":          emails,
@@ -319,6 +390,8 @@ func (h *UIHandler) CaseDetail(w http.ResponseWriter, r *http.Request) {
 		"Events":          events,
 		"Files":           files,
 		"ActivitiesCount": len(tasks) + len(events),
+		"ActiveTab":       activeTab,
+		"InitialTabHTML":  template.HTML(tabBuf.String()),
 		"Title":           caseRec["CaseNumber"],
 		"BasePath":        h.basePath,
 	})
@@ -404,10 +477,11 @@ func (h *UIHandler) AccountList(w http.ResponseWriter, r *http.Request) {
 	})
 
 	h.accountListTpl.ExecuteTemplate(w, "account_list.html", map[string]any{
-		"Accounts": accounts,
-		"Title":    "Salesforce — Accounts",
-		"Total":    len(accounts),
-		"BasePath": h.basePath,
+		"Accounts":    accounts,
+		"Title":       "Salesforce — Accounts",
+		"Total":       len(accounts),
+		"BasePath":    h.basePath,
+		"CurrentUser": h.currentUser(r),
 	})
 }
 
@@ -420,8 +494,13 @@ func (h *UIHandler) AccountDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get related cases
+	// Get related cases (indexed by AccountId).
 	cases, _ := h.store.GetByIndex("Case", "AccountId", id)
+	sort.Slice(cases, func(i, j int) bool {
+		a, _ := cases[i]["CaseNumber"].(string)
+		b, _ := cases[j]["CaseNumber"].(string)
+		return a < b
+	})
 
 	// Get related contacts
 	contacts, _ := h.store.GetByIndex("Contact", "AccountId", id)
@@ -430,15 +509,19 @@ func (h *UIHandler) AccountDetail(w http.ResponseWriter, r *http.Request) {
 	})
 
 	h.accountTpl.ExecuteTemplate(w, "account.html", map[string]any{
-		"Account":  account,
-		"Cases":    cases,
-		"Contacts": contacts,
-		"Title":    account["Name"],
-		"BasePath": h.basePath,
+		"Account":     account,
+		"Cases":       cases,
+		"Contacts":    contacts,
+		"Title":       account["Name"],
+		"BasePath":    h.basePath,
+		"CurrentUser": h.currentUser(r),
 	})
 }
 
 // Home renders the customer (Account) list as the application home page.
+// Each account is annotated with `_OpenCases`, the count of related Cases
+// whose Status is not Closed/Resolved, so the home table can show an
+// at-a-glance open-case load per customer.
 func (h *UIHandler) Home(w http.ResponseWriter, r *http.Request) {
 	accounts, _ := h.store.Query("Account", func(r map[string]any) bool { return true })
 
@@ -446,11 +529,29 @@ func (h *UIHandler) Home(w http.ResponseWriter, r *http.Request) {
 		return fmt.Sprint(accounts[i]["Name"]) < fmt.Sprint(accounts[j]["Name"])
 	})
 
+	for _, acc := range accounts {
+		accID, _ := acc["Id"].(string)
+		if accID == "" {
+			acc["_OpenCases"] = 0
+			continue
+		}
+		cases, _ := h.store.GetByIndex("Case", "AccountId", accID)
+		open := 0
+		for _, c := range cases {
+			status, _ := c["Status"].(string)
+			if isOpenCaseStatus(status) {
+				open++
+			}
+		}
+		acc["_OpenCases"] = open
+	}
+
 	h.homeTpl.ExecuteTemplate(w, "home.html", map[string]any{
-		"Accounts": accounts,
-		"Title":    "Home — Customers",
-		"Total":    len(accounts),
-		"BasePath": h.basePath,
+		"Accounts":    accounts,
+		"Title":       "Home — Customers",
+		"Total":       len(accounts),
+		"BasePath":    h.basePath,
+		"CurrentUser": h.currentUser(r),
 	})
 }
 
@@ -483,10 +584,11 @@ func (h *UIHandler) ContactDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.contactTpl.ExecuteTemplate(w, "contact.html", map[string]any{
-		"Contact":  contact,
-		"Cases":    cases,
-		"Title":    name,
-		"BasePath": h.basePath,
+		"Contact":     contact,
+		"Cases":       cases,
+		"Title":       name,
+		"BasePath":    h.basePath,
+		"CurrentUser": h.currentUser(r),
 	})
 }
 
@@ -512,9 +614,10 @@ func (h *UIHandler) UserDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.userTpl.ExecuteTemplate(w, "user.html", map[string]any{
-		"User":       user,
-		"OwnedCases": ownedCases,
-		"Title":      name,
-		"BasePath":   h.basePath,
+		"User":        user,
+		"OwnedCases":  ownedCases,
+		"Title":       name,
+		"BasePath":    h.basePath,
+		"CurrentUser": h.currentUser(r),
 	})
 }

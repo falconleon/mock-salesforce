@@ -64,6 +64,34 @@ body {
     border-color: rgba(255,255,255,0.7);
 }
 
+.user-menu {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: rgba(255,255,255,0.85);
+    font-size: 0.8125rem;
+}
+.falcon-return-btn + .user-menu { margin-left: 0.75rem; }
+.user-menu-email {
+    max-width: 18ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.user-menu-logout {
+    color: white;
+    text-decoration: none;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 4px;
+    font-weight: 500;
+}
+.user-menu-logout:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.7);
+}
+
 .main {
     max-width: 1200px;
     margin: 0 auto;

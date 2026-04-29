@@ -23,6 +23,12 @@
                 <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><path d="M10.707 3.293a1 1 0 00-1.414 0l-6 6a1 1 0 000 1.414l6 6a1 1 0 001.414-1.414L6.414 11H17a1 1 0 100-2H6.414l4.293-4.293a1 1 0 000-1.414z"/></svg>
                 Back to FalconMode
             </a>
+            {{if .CurrentUser}}
+            <div class="user-menu">
+                <span class="user-menu-email" title="{{.CurrentUser}}">{{.CurrentUser}}</span>
+                <a class="user-menu-logout" href="{{basePath}}/logout">Logout</a>
+            </div>
+            {{end}}
         </div>
     </header>
     <main class="main">

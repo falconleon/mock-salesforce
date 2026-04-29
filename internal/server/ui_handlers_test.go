@@ -6,8 +6,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/falconleon/mock-salesforce/internal/server/middleware"
 	"github.com/falconleon/mock-salesforce/internal/store"
 )
+
+// middlewareSetSession mints a session cookie for the given email and
+// writes it into the recorder so tests can copy it onto subsequent
+// requests.
+func middlewareSetSession(t *testing.T, rr http.ResponseWriter, email, secret string) {
+	t.Helper()
+	middleware.SetSessionCookie(rr, email, secret)
+}
 
 // uiTestStore returns a memory store seeded with the small fixture used
 // by the handler-level UI tests.
@@ -60,7 +69,7 @@ func uiTestStore(t *testing.T) *store.MemoryStore {
 
 func newTestUIHandler(t *testing.T) *UIHandler {
 	t.Helper()
-	return NewUIHandler(uiTestStore(t), "")
+	return NewUIHandler(uiTestStore(t), "", "")
 }
 
 func TestHomeRendersCustomerList(t *testing.T) {
@@ -164,6 +173,118 @@ func TestAccountDetailIncludesContacts(t *testing.T) {
 	}
 }
 
+// TestAccountDetailIncludesRelatedCases verifies that GetByIndex on
+// Case.AccountId resolves seeded cases, so the Account detail page
+// shows its Related Cases card. This covers the T6 hotfix that added
+// the missing Case index in MemoryStore.
+func TestAccountDetailIncludesRelatedCases(t *testing.T) {
+	h := newTestUIHandler(t)
+	req := httptest.NewRequest(http.MethodGet, "/lightning/r/Account/acc-1/view", nil)
+	req.SetPathValue("id", "acc-1")
+	rr := httptest.NewRecorder()
+
+	h.AccountDetail(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	for _, want := range []string{"Related Cases (1)", "00001000", "Login broken", "/lightning/r/Case/case-1/view"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q\n%s", want, body)
+		}
+	}
+}
+
+// TestHomeShowsOpenCasesColumn verifies the home page renders the
+// "Open Cases" column header and the per-account open count, treating
+// Closed/Resolved cases as terminal.
+func TestHomeShowsOpenCasesColumn(t *testing.T) {
+	s := uiTestStore(t)
+	if _, err := s.Create("Case", store.Record{
+		"Id": "case-2", "CaseNumber": "00001001",
+		"AccountId": "acc-1", "Status": "Closed",
+	}); err != nil {
+		t.Fatalf("seed closed case: %v", err)
+	}
+	if _, err := s.Create("Case", store.Record{
+		"Id": "case-3", "CaseNumber": "00001002",
+		"AccountId": "acc-1", "Status": "Escalated",
+	}); err != nil {
+		t.Fatalf("seed escalated case: %v", err)
+	}
+
+	h := NewUIHandler(s, "", "")
+	req := httptest.NewRequest(http.MethodGet, "/home", nil)
+	rr := httptest.NewRecorder()
+
+	h.Home(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, "<th>Open Cases</th>") {
+		t.Errorf("home missing Open Cases column header\n%s", body)
+	}
+	// acc-1 has 2 open cases (Working + Escalated); Closed is excluded.
+	// acc-2 has 0 open cases.
+	if !strings.Contains(body, `<td class="open-cases-cell">2</td>`) {
+		t.Errorf("home missing acc-1 open count of 2\n%s", body)
+	}
+	if !strings.Contains(body, `<td class="open-cases-cell">0</td>`) {
+		t.Errorf("home missing acc-2 open count of 0\n%s", body)
+	}
+}
+
+// TestLayoutRendersLogoutAndUserWhenAuthenticated verifies the nav
+// surfaces the current user's email and a Logout link when a valid
+// session cookie is present on the request.
+func TestLayoutRendersLogoutAndUserWhenAuthenticated(t *testing.T) {
+	const secret = "test-secret"
+	h := NewUIHandler(uiTestStore(t), "", secret)
+
+	req := httptest.NewRequest(http.MethodGet, "/home", nil)
+	rr := httptest.NewRecorder()
+	middlewareSetSession(t, rr, "demo@example.com", secret)
+	for _, c := range rr.Result().Cookies() {
+		req.AddCookie(c)
+	}
+	rr2 := httptest.NewRecorder()
+	h.Home(rr2, req)
+
+	if rr2.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr2.Code)
+	}
+	body := rr2.Body.String()
+	for _, want := range []string{"demo@example.com", `href="/logout"`, "Logout", "user-menu"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("nav missing %q\n%s", want, body)
+		}
+	}
+}
+
+// TestLayoutHidesLogoutWhenAnonymous verifies the user-menu is not
+// rendered when no valid session cookie is present.
+func TestLayoutHidesLogoutWhenAnonymous(t *testing.T) {
+	h := NewUIHandler(uiTestStore(t), "", "test-secret")
+	req := httptest.NewRequest(http.MethodGet, "/home", nil)
+	rr := httptest.NewRecorder()
+
+	h.Home(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	body := rr.Body.String()
+	if strings.Contains(body, "user-menu") {
+		t.Errorf("nav should not render user-menu when anonymous\n%s", body)
+	}
+	if strings.Contains(body, `href="/logout"`) {
+		t.Errorf("nav should not render Logout link when anonymous\n%s", body)
+	}
+}
+
 
 // caseTabsTestStore seeds a memory store with a single case plus emails,
 // comments, feed items + comments, tasks, events, files, and a content
@@ -246,7 +367,7 @@ func runCasePartial(h func(http.ResponseWriter, *http.Request), id string) *http
 }
 
 func TestCaseDetail_RendersTabsAndScript(t *testing.T) {
-	h := NewUIHandler(caseTabsTestStore(t), "")
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
 	rr := runCasePartial(h.CaseDetail, caseTabsTestCaseID)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -260,21 +381,124 @@ func TestCaseDetail_RendersTabsAndScript(t *testing.T) {
 		`hx-get="/lightning/r/Case/` + caseTabsTestCaseID + `/related/files"`,
 		`src="/static/htmx.min.js"`,
 		"Emails (1)", "Comments (1)", "Feed (1)", "Activities (2)", "Files (1)",
-		`hx-trigger="load"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing %q", want)
 		}
 	}
-	for _, banned := range []string{"unpkg.com", "cdn.jsdelivr", "cdnjs.cloudflare"} {
+	for _, banned := range []string{"unpkg.com", "cdn.jsdelivr", "cdnjs.cloudflare", `hx-trigger="load"`} {
 		if strings.Contains(body, banned) {
-			t.Errorf("body must not reference CDN %q", banned)
+			t.Errorf("body must not contain %q (default tab is now SSR'd, no client-side load fetch)", banned)
+		}
+	}
+}
+
+// TestCaseDetail_DefaultTabSSR verifies the default Emails tab body is
+// rendered server-side directly into #tab-content so a client without
+// JavaScript still sees the email list on first load.
+func TestCaseDetail_DefaultTabSSR(t *testing.T) {
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
+	rr := runCasePartial(h.CaseDetail, caseTabsTestCaseID)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	body := rr.Body.String()
+	for _, want := range []string{
+		`<div id="tab-content">`,
+		`data-tab-content="emails"`,
+		"Re: Tabbed Test Case",
+		`class="tab active"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q", want)
+		}
+	}
+}
+
+// TestCaseDetail_NoJSFallback_TabAnchors verifies tabs are <a href> links
+// pointing to ?tab=<name> on the case detail URL so they remain navigable
+// without JavaScript.
+func TestCaseDetail_NoJSFallback_TabAnchors(t *testing.T) {
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
+	rr := runCasePartial(h.CaseDetail, caseTabsTestCaseID)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	body := rr.Body.String()
+	for _, tab := range []string{"emails", "comments", "feed", "activities", "files"} {
+		want := `href="/lightning/r/Case/` + caseTabsTestCaseID + `/view?tab=` + tab + `"`
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing no-JS tab anchor %q", want)
+		}
+	}
+	if strings.Contains(body, `<button type="button" class="tab`) {
+		t.Errorf("tabs should be anchors, not buttons, for no-JS fallback")
+	}
+}
+
+// TestCaseDetail_TabQueryParam verifies that ?tab=<name> selects which
+// related-list partial is rendered server-side and which tab is marked
+// active.
+func TestCaseDetail_TabQueryParam(t *testing.T) {
+	cases := []struct {
+		tab       string
+		wantBody  string
+		activeFor string
+	}{
+		{"comments", "Initial triage complete.", "comments"},
+		{"feed", "Posted a status update.", "feed"},
+		{"activities", "Call customer back", "activities"},
+		{"files", "Incident report.pdf", "files"},
+		{"unknown", "Re: Tabbed Test Case", "emails"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.tab, func(t *testing.T) {
+			h := NewUIHandler(caseTabsTestStore(t), "", "")
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/?tab="+tc.tab, nil)
+			req.SetPathValue("id", caseTabsTestCaseID)
+			h.CaseDetail(rr, req)
+			if rr.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200", rr.Code)
+			}
+			body := rr.Body.String()
+			if !strings.Contains(body, tc.wantBody) {
+				t.Errorf("body missing %q for tab=%s", tc.wantBody, tc.tab)
+			}
+			wantActive := `data-tab="` + tc.activeFor + `"`
+			activeIdx := strings.Index(body, `class="tab active"`)
+			if activeIdx < 0 {
+				t.Fatalf("no active tab marker found")
+			}
+			if !strings.Contains(body[activeIdx:activeIdx+200], wantActive) {
+				t.Errorf("active tab for %s should be %s; body slice: %s", tc.tab, tc.activeFor, body[activeIdx:activeIdx+200])
+			}
+		})
+	}
+}
+
+// TestStaticAssets_Serve exercises the embedded static-asset handler
+// through the same construction used by the router. It locks in the
+// fs.Sub fix for the embedded "static/" prefix so /static/<file>
+// resolves to a 200 with body content.
+func TestStaticAssets_Serve(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle("GET /static/", staticHandler())
+	for _, path := range []string{"/static/htmx.min.js", "/static/salesforce.css"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("%s: status = %d, want 200", path, rr.Code)
+		}
+		if rr.Body.Len() < 100 {
+			t.Errorf("%s: body length = %d, want >= 100", path, rr.Body.Len())
 		}
 	}
 }
 
 func TestCaseDetail_NotFound_T7(t *testing.T) {
-	h := NewUIHandler(caseTabsTestStore(t), "")
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
 	rr := runCasePartial(h.CaseDetail, "5003t00002Missing")
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", rr.Code)
@@ -282,7 +506,7 @@ func TestCaseDetail_NotFound_T7(t *testing.T) {
 }
 
 func TestCaseEmailsPartial(t *testing.T) {
-	h := NewUIHandler(caseTabsTestStore(t), "")
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
 	rr := runCasePartial(h.CaseEmailsPartial, caseTabsTestCaseID)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -300,7 +524,7 @@ func TestCaseEmailsPartial(t *testing.T) {
 }
 
 func TestCaseCommentsPartial_ResolvesUserName(t *testing.T) {
-	h := NewUIHandler(caseTabsTestStore(t), "")
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
 	rr := runCasePartial(h.CaseCommentsPartial, caseTabsTestCaseID)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -315,7 +539,7 @@ func TestCaseCommentsPartial_ResolvesUserName(t *testing.T) {
 }
 
 func TestCaseFeedPartial_IncludesNestedComments(t *testing.T) {
-	h := NewUIHandler(caseTabsTestStore(t), "")
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
 	rr := runCasePartial(h.CaseFeedPartial, caseTabsTestCaseID)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -333,7 +557,7 @@ func TestCaseFeedPartial_IncludesNestedComments(t *testing.T) {
 }
 
 func TestCaseActivitiesPartial(t *testing.T) {
-	h := NewUIHandler(caseTabsTestStore(t), "")
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
 	rr := runCasePartial(h.CaseActivitiesPartial, caseTabsTestCaseID)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -350,7 +574,7 @@ func TestCaseActivitiesPartial(t *testing.T) {
 }
 
 func TestCaseFilesPartial(t *testing.T) {
-	h := NewUIHandler(caseTabsTestStore(t), "")
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
 	rr := runCasePartial(h.CaseFilesPartial, caseTabsTestCaseID)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -365,7 +589,7 @@ func TestCaseFilesPartial(t *testing.T) {
 }
 
 func TestCasePartials_NotFound(t *testing.T) {
-	h := NewUIHandler(caseTabsTestStore(t), "")
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
 	for name, fn := range map[string]func(http.ResponseWriter, *http.Request){
 		"emails":     h.CaseEmailsPartial,
 		"comments":   h.CaseCommentsPartial,
@@ -387,7 +611,7 @@ func TestCasePartials_EmptyState(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	h := NewUIHandler(s, "")
+	h := NewUIHandler(s, "", "")
 	for name, fn := range map[string]func(http.ResponseWriter, *http.Request){
 		"emails":     h.CaseEmailsPartial,
 		"comments":   h.CaseCommentsPartial,
@@ -407,7 +631,7 @@ func TestCasePartials_EmptyState(t *testing.T) {
 }
 
 func TestCaseDetail_ResolvesByCaseNumber(t *testing.T) {
-	h := NewUIHandler(caseTabsTestStore(t), "")
+	h := NewUIHandler(caseTabsTestStore(t), "", "")
 	rr := runCasePartial(h.CaseDetail, "00009999")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
