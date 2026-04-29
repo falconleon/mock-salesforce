@@ -1,0 +1,32 @@
+{{define "playground_results"}}
+{{if .Error}}
+<div class="playground-error" data-tab-content="playground-results">
+    <strong>{{.ErrorCode}}</strong>: {{.Error}}
+</div>
+{{else}}
+<div class="playground-meta" data-tab-content="playground-results">
+    <span class="count-badge">{{.TotalSize}} rows</span>
+    <span class="playground-elapsed">{{.Elapsed}}</span>
+</div>
+{{if .Rows}}
+<div class="playground-table-wrap">
+    <table class="sf-table sf-table-compact">
+        <thead>
+            <tr>
+                {{range .Headers}}<th>{{.}}</th>{{end}}
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Rows}}
+            <tr>
+                {{range .}}<td>{{.}}</td>{{end}}
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div class="related-empty">No rows.</div>
+{{end}}
+{{end}}
+{{end}}

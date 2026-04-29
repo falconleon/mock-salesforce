@@ -1,0 +1,47 @@
+{{template "layout" .}}
+{{define "content"}}
+<div class="page-header">
+    <h1>SOQL Playground</h1>
+</div>
+<div class="record-grid playground-grid">
+    <div class="record-main">
+        <div class="card">
+            <h3>Query</h3>
+            <form id="playground-form"
+                  hx-post="{{basePath}}/playground/run"
+                  hx-target="#playground-results"
+                  hx-swap="innerHTML">
+                <textarea id="playground-q" name="q" class="playground-textarea"
+                          spellcheck="false" autocomplete="off"
+                          placeholder="SELECT Id, Name FROM Account LIMIT 10">{{.Query}}</textarea>
+                <div class="playground-actions">
+                    <button type="submit" class="playground-run">Run Query</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <h3>Results</h3>
+            <div id="playground-results">
+                <div class="related-empty">Run a query to see results.</div>
+            </div>
+        </div>
+    </div>
+    <div class="record-sidebar">
+        <div class="card">
+            <h3>Examples</h3>
+            <ul class="playground-examples">
+                {{range .Examples}}
+                <li><a href="#" data-q="{{.}}" onclick="sfPlaygroundLoad(this); return false;">{{.}}</a></li>
+                {{end}}
+            </ul>
+        </div>
+    </div>
+</div>
+<script src="{{basePath}}/static/htmx.min.js"></script>
+<script>
+function sfPlaygroundLoad(el) {
+    var ta = document.getElementById('playground-q');
+    if (ta) { ta.value = el.getAttribute('data-q'); ta.focus(); }
+}
+</script>
+{{end}}
