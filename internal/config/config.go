@@ -25,6 +25,13 @@ type Config struct {
 	MockUsers        map[string]string // email -> password
 	SessionSecret    string
 	AdminToken       string // X-Admin-Token required for /admin/users; empty disables the endpoint
+	// MockRefreshRotation enables refresh-token rotation on the
+	// refresh_token grant per OAuth 2.1 / RFC 6749 §10.4. When true
+	// (default), each refresh exchange issues a fresh refresh_token and
+	// invalidates the prior one; replaying a rotated token revokes the
+	// whole token family. Set to false to retain the legacy "echo same
+	// refresh_token" behaviour.
+	MockRefreshRotation bool
 }
 
 // Default returns a Config with default values.
@@ -41,6 +48,7 @@ func Default() *Config {
 		APIVersion:       "v66.0",
 		InstanceURL:      "http://localhost:8080",
 		SessionSecret:    "sf-mock-dev-secret",
+		MockRefreshRotation: true,
 	}
 }
 
@@ -130,6 +138,9 @@ func FromEnv() (*Config, error) {
 	}
 	if adminToken := os.Getenv("ADMIN_TOKEN"); adminToken != "" {
 		cfg.AdminToken = adminToken
+	}
+	if rot := os.Getenv("MOCK_REFRESH_ROTATION"); rot != "" {
+		cfg.MockRefreshRotation = rot != "false" && rot != "0"
 	}
 
 	return cfg, nil

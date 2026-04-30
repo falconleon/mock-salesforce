@@ -111,9 +111,10 @@ func TestOAuthHandler_HandleToken_UnsupportedGrantType(t *testing.T) {
 	handler := handlers.NewOAuthHandler(cfg, logger)
 
 	form := url.Values{}
-	// T11 added client_credentials + refresh_token support, so use a
-	// grant type Salesforce really doesn't accept here.
-	form.Set("grant_type", "authorization_code")
+	// All standard Salesforce grant types are now wired (password,
+	// refresh_token, client_credentials, authorization_code), so use a
+	// genuinely unsupported value.
+	form.Set("grant_type", "device_code")
 	form.Set("client_id", cfg.MockClientID)
 	form.Set("client_secret", cfg.MockClientSecret)
 
@@ -304,8 +305,10 @@ func TestOAuthHandler_RefreshTokenGrant(t *testing.T) {
 	if refreshed.AccessToken == "" || refreshed.AccessToken == seed.AccessToken {
 		t.Errorf("expected a new access_token, got %q (was %q)", refreshed.AccessToken, seed.AccessToken)
 	}
-	if refreshed.RefreshToken != seed.RefreshToken {
-		t.Errorf("refresh_token should be echoed unchanged, got %q want %q",
+	// Default config rotates the refresh_token (RFC 6749 §10.4); the
+	// echo-unchanged behaviour is gated on MockRefreshRotation=false.
+	if refreshed.RefreshToken == "" || refreshed.RefreshToken == seed.RefreshToken {
+		t.Errorf("expected a new (rotated) refresh_token, got %q (was %q)",
 			refreshed.RefreshToken, seed.RefreshToken)
 	}
 }
@@ -769,3 +772,269 @@ func TestOAuthHandler_Introspect_WrongFormBodyCreds_Rejected(t *testing.T) {
 		t.Errorf("expected 401 with wrong form-body creds, got %d", rec.Code)
 	}
 }
+
+
+// pkcePair returns a (verifier, S256-challenge) pair that satisfies
+// RFC 7636 §4.2.
+func pkcePair(t *testing.T, verifier string) (string, string) {
+	t.Helper()
+	sum := sha256.Sum256([]byte(verifier))
+	return verifier, base64.RawURLEncoding.EncodeToString(sum[:])
+}
+
+// authCodeHarness builds an OAuthHandler wired with a fresh AuthCodeStore
+// and pre-issues a single authorization code, returning the handler,
+// store, the issued code record, and the matching PKCE verifier.
+func authCodeHarness(t *testing.T, method string) (*handlers.OAuthHandler, *handlers.AuthCodeStore, *handlers.AuthCode, string) {
+	t.Helper()
+	cfg := config.Default()
+	store := handlers.NewAuthCodeStore()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop()).WithAuthCodes(store)
+	verifier := "abc123-very-long-code-verifier-that-is-enough-bytes"
+	var challenge string
+	if method == "S256" {
+		_, challenge = pkcePair(t, verifier)
+	} else {
+		challenge = verifier
+	}
+	ac := store.Issue(cfg.MockClientID, "https://app.example/cb", "api", challenge, method, cfg.MockUsername)
+	return h, store, ac, verifier
+}
+
+func TestOAuthHandler_AuthorizationCodeGrant_S256_Success(t *testing.T) {
+	h, _, ac, verifier := authCodeHarness(t, "S256")
+	cfg := config.Default()
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("code", ac.Code)
+	form.Set("redirect_uri", ac.RedirectURI)
+	form.Set("code_verifier", verifier)
+
+	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp models.OAuthResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.AccessToken == "" || resp.RefreshToken == "" {
+		t.Errorf("expected access+refresh tokens, got %+v", resp)
+	}
+}
+
+func TestOAuthHandler_AuthorizationCodeGrant_Plain_Success(t *testing.T) {
+	h, _, ac, verifier := authCodeHarness(t, "plain")
+	cfg := config.Default()
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("code", ac.Code)
+	form.Set("redirect_uri", ac.RedirectURI)
+	form.Set("code_verifier", verifier)
+
+	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("plain PKCE: expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestOAuthHandler_AuthorizationCodeGrant_Reuse_Fails(t *testing.T) {
+	h, _, ac, verifier := authCodeHarness(t, "S256")
+	cfg := config.Default()
+
+	mkForm := func() url.Values {
+		f := url.Values{}
+		f.Set("grant_type", "authorization_code")
+		f.Set("client_id", cfg.MockClientID)
+		f.Set("client_secret", cfg.MockClientSecret)
+		f.Set("code", ac.Code)
+		f.Set("redirect_uri", ac.RedirectURI)
+		f.Set("code_verifier", verifier)
+		return f
+	}
+	if rec := postForm(h.HandleToken, "/services/oauth2/token", mkForm(), "POST"); rec.Code != http.StatusOK {
+		t.Fatalf("first exchange should succeed, got %d", rec.Code)
+	}
+	rec := postForm(h.HandleToken, "/services/oauth2/token", mkForm(), "POST")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("reuse: expected 400, got %d", rec.Code)
+	}
+	var resp models.OAuthError
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error != "invalid_grant" {
+		t.Errorf("expected invalid_grant on reuse, got %q", resp.Error)
+	}
+}
+
+func TestOAuthHandler_AuthorizationCodeGrant_BadVerifier_Fails(t *testing.T) {
+	h, _, ac, _ := authCodeHarness(t, "S256")
+	cfg := config.Default()
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("code", ac.Code)
+	form.Set("redirect_uri", ac.RedirectURI)
+	form.Set("code_verifier", "not-the-right-verifier-at-all-padding-padding")
+
+	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+	var resp models.OAuthError
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error != "invalid_grant" {
+		t.Errorf("expected invalid_grant, got %q", resp.Error)
+	}
+}
+
+func TestOAuthHandler_AuthorizationCodeGrant_MissingVerifier_Fails(t *testing.T) {
+	h, _, ac, _ := authCodeHarness(t, "S256")
+	cfg := config.Default()
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("code", ac.Code)
+	form.Set("redirect_uri", ac.RedirectURI)
+
+	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 with missing verifier, got %d", rec.Code)
+	}
+}
+
+func TestOAuthHandler_AuthorizationCodeGrant_RedirectURIMismatch_Fails(t *testing.T) {
+	h, _, ac, verifier := authCodeHarness(t, "S256")
+	cfg := config.Default()
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("code", ac.Code)
+	form.Set("redirect_uri", "https://attacker.example/cb")
+	form.Set("code_verifier", verifier)
+
+	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 on redirect_uri mismatch, got %d", rec.Code)
+	}
+	var resp models.OAuthError
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error != "invalid_grant" {
+		t.Errorf("expected invalid_grant, got %q", resp.Error)
+	}
+}
+
+func TestOAuthHandler_AuthorizationCodeGrant_UnknownCode_Fails(t *testing.T) {
+	cfg := config.Default()
+	store := handlers.NewAuthCodeStore()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop()).WithAuthCodes(store)
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("code", "no-such-code")
+	form.Set("redirect_uri", "https://app.example/cb")
+	form.Set("code_verifier", "anything")
+
+	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for unknown code, got %d", rec.Code)
+	}
+}
+
+// G3: refresh-token rotation reuse-detection — replaying a rotated
+// refresh token must revoke the entire token family so all access
+// tokens derived from it stop working (RFC 6749 §10.4).
+func TestOAuthHandler_RefreshTokenGrant_ReuseRevokesFamily(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+	seed := issueToken(t, h, cfg)
+
+	// First refresh: rotates the refresh token, mints new access.
+	form := url.Values{}
+	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("refresh_token", seed.RefreshToken)
+	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("first refresh: expected 200, got %d", rec.Code)
+	}
+	var rotated models.OAuthResponse
+	json.NewDecoder(rec.Body).Decode(&rotated)
+	if rotated.RefreshToken == seed.RefreshToken {
+		t.Fatal("expected refresh_token to rotate")
+	}
+
+	// Replay the now-rotated refresh token: must fail and trigger family
+	// revocation.
+	rec2 := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec2.Code != http.StatusBadRequest {
+		t.Fatalf("reuse: expected 400, got %d", rec2.Code)
+	}
+
+	// The freshly-rotated refresh AND its derived access token must now
+	// be invalid (whole family revoked).
+	if middleware.LookupToken(rotated.RefreshToken) != nil {
+		t.Error("post-reuse: rotated refresh_token should be revoked")
+	}
+	if middleware.LookupToken(rotated.AccessToken) != nil {
+		t.Error("post-reuse: derived access_token should be revoked")
+	}
+	if middleware.LookupToken(seed.AccessToken) != nil {
+		t.Error("post-reuse: original access_token should be revoked")
+	}
+
+	// And the rotated refresh can no longer be exchanged.
+	form3 := url.Values{}
+	form3.Set("grant_type", "refresh_token")
+	form3.Set("client_id", cfg.MockClientID)
+	form3.Set("client_secret", cfg.MockClientSecret)
+	form3.Set("refresh_token", rotated.RefreshToken)
+	rec3 := postForm(h.HandleToken, "/services/oauth2/token", form3, "POST")
+	if rec3.Code != http.StatusBadRequest {
+		t.Fatalf("post-reuse refresh: expected 400, got %d", rec3.Code)
+	}
+}
+
+// G3: when MockRefreshRotation is disabled the refresh_token must be
+// echoed unchanged (legacy behaviour).
+func TestOAuthHandler_RefreshTokenGrant_RotationDisabled_EchoesRefresh(t *testing.T) {
+	cfg := config.Default()
+	cfg.MockRefreshRotation = false
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+	seed := issueToken(t, h, cfg)
+
+	form := url.Values{}
+	form.Set("grant_type", "refresh_token")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("refresh_token", seed.RefreshToken)
+	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	var resp models.OAuthResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.RefreshToken != seed.RefreshToken {
+		t.Errorf("rotation disabled: expected echoed refresh_token, got %q want %q",
+			resp.RefreshToken, seed.RefreshToken)
+	}
+	// And the original refresh_token must remain usable.
+	if middleware.LookupToken(seed.RefreshToken) == nil {
+		t.Error("rotation disabled: original refresh should remain valid")
+	}
+}
+

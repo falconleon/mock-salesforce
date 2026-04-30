@@ -28,6 +28,7 @@ var publicPaths = map[string]bool{
 	"/services/oauth2/token":      true,
 	"/services/oauth2/revoke":     true,
 	"/services/oauth2/introspect": true,
+	"/services/oauth2/userinfo":   true,
 	"/services/oauth2/authorize":  true,
 	"/health":                     true,
 	"/":                           true,
@@ -48,6 +49,15 @@ type TokenInfo struct {
 	IssuedAt  int64 // unix seconds
 	ExpiresAt int64 // unix seconds; 0 = no expiry
 	Refresh   string
+	// Family identifies the lineage of refresh-token rotations and the
+	// access tokens they minted. Used by /token refresh-rotation reuse
+	// detection (RFC 6749 §10.4) to revoke the entire chain when a
+	// rotated refresh is replayed.
+	Family string
+	// Revoked marks an entry that has been rotated or family-revoked but
+	// is retained so reuse can be detected. LookupToken treats Revoked
+	// entries as absent.
+	Revoked bool
 }
 
 var (
@@ -75,8 +85,22 @@ func RegisterTokenInfo(info *TokenInfo) {
 	mu.Unlock()
 }
 
-// LookupToken returns the metadata for a token, or nil if unknown/revoked.
+// LookupToken returns the metadata for a token, or nil if unknown,
+// revoked, or rotated. Use LookupTokenRaw to inspect rotated entries
+// (e.g. for refresh-token reuse detection).
 func LookupToken(token string) *TokenInfo {
+	mu.RLock()
+	defer mu.RUnlock()
+	info := mockTokens[token]
+	if info == nil || info.Revoked {
+		return nil
+	}
+	return info
+}
+
+// LookupTokenRaw returns the entry even if it has been rotated or
+// family-revoked. Returns nil only if the token has never been issued.
+func LookupTokenRaw(token string) *TokenInfo {
 	mu.RLock()
 	defer mu.RUnlock()
 	return mockTokens[token]
@@ -92,6 +116,40 @@ func RevokeToken(token string) bool {
 	}
 	delete(mockTokens, token)
 	return true
+}
+
+// MarkRevoked flags a token as revoked but retains its metadata so
+// reuse detection can recognise replays. Returns true if the entry was
+// known.
+func MarkRevoked(token string) bool {
+	mu.Lock()
+	defer mu.Unlock()
+	info, ok := mockTokens[token]
+	if !ok {
+		return false
+	}
+	info.Revoked = true
+	return true
+}
+
+// RevokeFamily marks every token in the given family as revoked. Used
+// when a rotated refresh token is replayed (RFC 6749 §10.4 advises
+// revoking the whole chain) so all derived access tokens stop working.
+// A zero family is a no-op.
+func RevokeFamily(family string) int {
+	if family == "" {
+		return 0
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	n := 0
+	for _, info := range mockTokens {
+		if info.Family == family && !info.Revoked {
+			info.Revoked = true
+			n++
+		}
+	}
+	return n
 }
 
 // Auth validates Bearer tokens and session cookies on protected routes.

@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -59,6 +60,7 @@ func extractClientCredentials(r *http.Request) (id, secret string, ok bool, err 
 type OAuthHandler struct {
 	config *config.Config
 	logger zerolog.Logger
+	codes  *AuthCodeStore
 }
 
 // NewOAuthHandler creates a new OAuth handler.
@@ -67,6 +69,14 @@ func NewOAuthHandler(cfg *config.Config, logger zerolog.Logger) *OAuthHandler {
 		config: cfg,
 		logger: logger.With().Str("handler", "oauth").Logger(),
 	}
+}
+
+// WithAuthCodes wires an AuthCodeStore so the handler can service the
+// authorization_code grant on /token (RFC 6749 §4.1.3). Returns the
+// receiver for fluent construction at router wiring time.
+func (h *OAuthHandler) WithAuthCodes(codes *AuthCodeStore) *OAuthHandler {
+	h.codes = codes
+	return h
 }
 
 const (
@@ -104,6 +114,8 @@ func (h *OAuthHandler) HandleToken(w http.ResponseWriter, r *http.Request) {
 		h.handleRefreshGrant(w, r, clientID, clientSecret)
 	case "client_credentials":
 		h.handleClientCredentialsGrant(w, clientID, clientSecret)
+	case "authorization_code":
+		h.handleAuthorizationCodeGrant(w, r, clientID, clientSecret)
 	default:
 		h.writeOAuthError(w, http.StatusBadRequest, "unsupported_grant_type",
 			fmt.Sprintf("Grant type '%s' not supported.", grantType))
@@ -130,10 +142,81 @@ func (h *OAuthHandler) handleRefreshGrant(w http.ResponseWriter, r *http.Request
 	refresh := r.FormValue("refresh_token")
 	info := middleware.LookupToken(refresh)
 	if info == nil || info.Type != "refresh" {
+		// RFC 6749 §10.4: replay of a rotated refresh token MUST revoke
+		// the entire family. Distinguish "never seen" from "previously
+		// rotated" via LookupTokenRaw.
+		if raw := middleware.LookupTokenRaw(refresh); raw != nil && raw.Type == "refresh" && raw.Revoked {
+			n := middleware.RevokeFamily(raw.Family)
+			h.logger.Warn().
+				Str("family", raw.Family).
+				Int("revoked", n).
+				Msg("OAuth refresh-token reuse detected; family revoked")
+		}
 		h.writeOAuthError(w, http.StatusBadRequest, "invalid_grant", "expired access/refresh token")
 		return
 	}
 	h.issueRefreshedAccess(w, info)
+}
+
+// handleAuthorizationCodeGrant exchanges a one-time authorization code
+// (RFC 6749 §4.1.3) for tokens. PKCE (RFC 7636) is required by the
+// front-end /authorize handler so we always have a stored
+// code_challenge to verify against.
+func (h *OAuthHandler) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Request, clientID, clientSecret string) {
+	if !h.validateClient(w, clientID, clientSecret) {
+		return
+	}
+	if h.codes == nil {
+		h.writeOAuthError(w, http.StatusBadRequest, "invalid_grant", "authorization_code grant is not configured")
+		return
+	}
+	code := r.PostFormValue("code")
+	redirectURI := r.PostFormValue("redirect_uri")
+	verifier := r.PostFormValue("code_verifier")
+	if code == "" {
+		h.writeOAuthError(w, http.StatusBadRequest, "invalid_request", "code is required")
+		return
+	}
+	ac := h.codes.Consume(code)
+	if ac == nil {
+		h.writeOAuthError(w, http.StatusBadRequest, "invalid_grant",
+			"authorization code is invalid, expired, or already used")
+		return
+	}
+	if subtle.ConstantTimeCompare([]byte(ac.ClientID), []byte(clientID)) != 1 {
+		h.writeOAuthError(w, http.StatusBadRequest, "invalid_grant",
+			"client_id does not match the authorization code")
+		return
+	}
+	if ac.RedirectURI != redirectURI {
+		h.writeOAuthError(w, http.StatusBadRequest, "invalid_grant",
+			"redirect_uri does not match the authorization request")
+		return
+	}
+	if !verifyPKCE(verifier, ac.CodeChallenge, ac.CodeChallengeMethod) {
+		h.writeOAuthError(w, http.StatusBadRequest, "invalid_grant",
+			"PKCE code_verifier verification failed")
+		return
+	}
+	h.issueTokens(w, ac.Username, true)
+}
+
+// verifyPKCE checks the code_verifier against the stored challenge per
+// RFC 7636 §4.6. Returns false on any mismatch or unsupported method.
+func verifyPKCE(verifier, challenge, method string) bool {
+	if verifier == "" || challenge == "" {
+		return false
+	}
+	switch method {
+	case "S256":
+		sum := sha256.Sum256([]byte(verifier))
+		computed := base64.RawURLEncoding.EncodeToString(sum[:])
+		return subtle.ConstantTimeCompare([]byte(computed), []byte(challenge)) == 1
+	case "plain":
+		return subtle.ConstantTimeCompare([]byte(verifier), []byte(challenge)) == 1
+	default:
+		return false
+	}
 }
 
 func (h *OAuthHandler) handleClientCredentialsGrant(w http.ResponseWriter, clientID, clientSecret string) {
@@ -209,44 +292,43 @@ func (h *OAuthHandler) validateUser(username, password string) bool {
 
 
 // issueTokens generates a fresh access token (and optional refresh
-// token) for the given user and writes the token response.
+// token) for the given user and writes the token response. When a
+// refresh token is issued a new family ID is allocated so subsequent
+// rotations can detect replays of the original refresh.
 func (h *OAuthHandler) issueTokens(w http.ResponseWriter, username string, withRefresh bool) {
 	now := time.Now()
 	access := h.generateToken("access", username, now)
 	idURL := h.identityURL(username)
 	resp := h.buildTokenResponse(access, idURL, now)
 
-	info := &TokenInfoBuilder{
-		Token:    access,
-		Type:     "access",
-		Username: username,
-		UserID:   userIDFromIdentity(idURL),
-		IssuedAt: now.Unix(),
-	}
+	userID := userIDFromIdentity(idURL)
+	var refresh, family string
 	if withRefresh {
-		refresh := h.generateToken("refresh", username, now)
+		refresh = h.generateToken("refresh", username, now)
+		family = newFamilyID()
 		resp.RefreshToken = refresh
-		info.Refresh = refresh
 		middleware.RegisterTokenInfo(&middleware.TokenInfo{
 			Token:    refresh,
 			Type:     "refresh",
 			Username: username,
-			UserID:   info.UserID,
+			UserID:   userID,
 			ClientID: h.config.MockClientID,
 			Scope:    scopeFull,
 			IssuedAt: now.Unix(),
+			Family:   family,
 		})
 	}
 	middleware.RegisterTokenInfo(&middleware.TokenInfo{
-		Token:     info.Token,
-		Type:      info.Type,
-		Username:  info.Username,
-		UserID:    info.UserID,
+		Token:     access,
+		Type:      "access",
+		Username:  username,
+		UserID:    userID,
 		ClientID:  h.config.MockClientID,
 		Scope:     scopeFull,
-		IssuedAt:  info.IssuedAt,
-		ExpiresAt: info.IssuedAt + 7200,
-		Refresh:   info.Refresh,
+		IssuedAt:  now.Unix(),
+		ExpiresAt: now.Unix() + 7200,
+		Refresh:   refresh,
+		Family:    family,
 	})
 
 	if username != "" {
@@ -257,14 +339,35 @@ func (h *OAuthHandler) issueTokens(w http.ResponseWriter, username string, withR
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// issueRefreshedAccess mints a new access token for an existing refresh
-// token and writes the response (echoing the same refresh_token).
+// issueRefreshedAccess mints a new access token in response to a
+// refresh exchange. When MockRefreshRotation is enabled (default) a
+// fresh refresh_token is also issued and the prior one is marked
+// revoked so subsequent reuse can be detected (RFC 6749 §10.4); when
+// disabled, the original refresh_token is echoed unchanged.
 func (h *OAuthHandler) issueRefreshedAccess(w http.ResponseWriter, refresh *middleware.TokenInfo) {
 	now := time.Now()
 	access := h.generateToken("access", refresh.Username, now)
 	idURL := h.identityURL(refresh.Username)
 	resp := h.buildTokenResponse(access, idURL, now)
-	resp.RefreshToken = refresh.Token
+
+	rotate := h.config.MockRefreshRotation
+	newRefresh := refresh.Token
+	if rotate {
+		newRefresh = h.generateToken("refresh", refresh.Username, now)
+		middleware.RegisterTokenInfo(&middleware.TokenInfo{
+			Token:    newRefresh,
+			Type:     "refresh",
+			Username: refresh.Username,
+			UserID:   refresh.UserID,
+			ClientID: refresh.ClientID,
+			Scope:    refresh.Scope,
+			IssuedAt: now.Unix(),
+			Family:   refresh.Family,
+		})
+		// Retain the prior refresh entry so a replay is recognisable.
+		middleware.MarkRevoked(refresh.Token)
+	}
+	resp.RefreshToken = newRefresh
 
 	middleware.RegisterTokenInfo(&middleware.TokenInfo{
 		Token:     access,
@@ -275,10 +378,22 @@ func (h *OAuthHandler) issueRefreshedAccess(w http.ResponseWriter, refresh *midd
 		Scope:     refresh.Scope,
 		IssuedAt:  now.Unix(),
 		ExpiresAt: now.Unix() + 7200,
-		Refresh:   refresh.Token,
+		Refresh:   newRefresh,
+		Family:    refresh.Family,
 	})
-	h.logger.Info().Str("username", refresh.Username).Msg("OAuth access token refreshed")
+	h.logger.Info().
+		Str("username", refresh.Username).
+		Bool("rotated", rotate).
+		Msg("OAuth access token refreshed")
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// newFamilyID returns a 128-bit URL-safe random family identifier used
+// to link refresh-token rotations and their derived access tokens.
+func newFamilyID() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
 }
 
 // TokenInfoBuilder is an internal scratch struct used by issueTokens

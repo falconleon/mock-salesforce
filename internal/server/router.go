@@ -28,7 +28,8 @@ func (s *Server) setupRoutes() http.Handler {
 	mux := http.NewServeMux()
 
 	// Create handlers with dependencies
-	oauthHandler := handlers.NewOAuthHandler(s.config, s.logger)
+	authCodeStore := handlers.NewAuthCodeStore()
+	oauthHandler := handlers.NewOAuthHandler(s.config, s.logger).WithAuthCodes(authCodeStore)
 	healthHandler := handlers.NewHealthHandler(s.logger)
 	queryHandler := handlers.NewQueryHandler(s.store, s.logger)
 	sobjectHandler := handlers.NewSObjectHandler(s.store, s.logger)
@@ -48,7 +49,6 @@ func (s *Server) setupRoutes() http.Handler {
 	// basePath func map used by other UI pages.
 	authorizeFuncMap := template.FuncMap{"basePath": func() string { return basePath }}
 	authorizeTpl := template.Must(template.New("").Funcs(authorizeFuncMap).ParseFS(templateFS, "templates/layout.html", "templates/authorize.html"))
-	authCodeStore := handlers.NewAuthCodeStore()
 	authorizeHandler := handlers.NewAuthorizeHandler(s.config, authCodeStore, authorizeTpl, s.logger)
 	mux.HandleFunc("GET /services/oauth2/authorize", authorizeHandler.HandleGet)
 	mux.HandleFunc("POST /services/oauth2/authorize", authorizeHandler.HandlePost)
