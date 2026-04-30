@@ -353,6 +353,22 @@ func issueToken(t *testing.T, h *handlers.OAuthHandler, cfg *config.Config) mode
 	return r
 }
 
+// revokeRequest builds a /revoke request with HTTP Basic client auth
+// applied (RFC 7009 §2.1 requires confidential clients to authenticate).
+func revokeRequest(t *testing.T, cfg *config.Config, method, target string, form url.Values) *http.Request {
+	t.Helper()
+	var body *strings.Reader
+	if form != nil {
+		body = strings.NewReader(form.Encode())
+	} else {
+		body = strings.NewReader("")
+	}
+	req := httptest.NewRequest(method, target, body)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(cfg.MockClientID, cfg.MockClientSecret)
+	return req
+}
+
 func TestOAuthHandler_Revoke_Success(t *testing.T) {
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
@@ -360,7 +376,8 @@ func TestOAuthHandler_Revoke_Success(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("token", tok.AccessToken)
-	rec := postForm(h.HandleRevoke, "/services/oauth2/revoke", form, "POST")
+	rec := httptest.NewRecorder()
+	h.HandleRevoke(rec, revokeRequest(t, cfg, "POST", "/services/oauth2/revoke", form))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("revoke: expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
@@ -369,15 +386,18 @@ func TestOAuthHandler_Revoke_Success(t *testing.T) {
 	}
 }
 
-func TestOAuthHandler_Revoke_UnknownToken(t *testing.T) {
+// RFC 7009 §2.2: the revocation endpoint MUST respond 200 even when the
+// supplied token is unknown to the server.
+func TestOAuthHandler_Revoke_UnknownTokenReturns200(t *testing.T) {
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 
 	form := url.Values{}
 	form.Set("token", "no-such-token")
-	rec := postForm(h.HandleRevoke, "/services/oauth2/revoke", form, "POST")
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for unknown token, got %d", rec.Code)
+	rec := httptest.NewRecorder()
+	h.HandleRevoke(rec, revokeRequest(t, cfg, "POST", "/services/oauth2/revoke", form))
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 for unknown token (RFC 7009 §2.2), got %d", rec.Code)
 	}
 }
 
@@ -386,11 +406,65 @@ func TestOAuthHandler_Revoke_AcceptsQueryParam(t *testing.T) {
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	tok := issueToken(t, h, cfg)
 
-	req := httptest.NewRequest("GET", "/services/oauth2/revoke?token="+url.QueryEscape(tok.AccessToken), nil)
+	req := revokeRequest(t, cfg, "GET", "/services/oauth2/revoke?token="+url.QueryEscape(tok.AccessToken), nil)
 	rec := httptest.NewRecorder()
 	h.HandleRevoke(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", rec.Code)
+	}
+}
+
+// RFC 7009 §2.1: the revocation endpoint MUST authenticate the client.
+// Requests without client credentials are rejected with 401.
+func TestOAuthHandler_Revoke_NoAuth_Returns401(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	form := url.Values{}
+	form.Set("token", "anything")
+	rec := postForm(h.HandleRevoke, "/services/oauth2/revoke", form, "POST")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 without client auth, got %d", rec.Code)
+	}
+	if got := rec.Header().Get("WWW-Authenticate"); !strings.HasPrefix(got, "Basic") {
+		t.Errorf("expected WWW-Authenticate: Basic challenge, got %q", got)
+	}
+	var resp models.OAuthError
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error != "invalid_client" {
+		t.Errorf("expected error=invalid_client, got %q", resp.Error)
+	}
+}
+
+// RFC 7009 §2.1: invalid client credentials are also rejected with 401.
+func TestOAuthHandler_Revoke_BadAuth_Returns401(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	form := url.Values{}
+	form.Set("token", "anything")
+	req := httptest.NewRequest("POST", "/services/oauth2/revoke", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(cfg.MockClientID, "wrong-secret")
+	rec := httptest.NewRecorder()
+	h.HandleRevoke(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 with wrong client_secret, got %d", rec.Code)
+	}
+}
+
+// /revoke also accepts form-body client credentials per RFC 6749 §2.3.1.
+func TestOAuthHandler_Revoke_FormBodyCredsAllowed(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	form := url.Values{}
+	form.Set("token", "anything")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	rec := postForm(h.HandleRevoke, "/services/oauth2/revoke", form, "POST")
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 with form-body creds, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -544,7 +618,8 @@ func TestOAuthHandler_RoundTrip_RevokeInvalidatesBearer(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("token", tok.AccessToken)
-	rec := postForm(h.HandleRevoke, "/services/oauth2/revoke", form, "POST")
+	rec := httptest.NewRecorder()
+	h.HandleRevoke(rec, revokeRequest(t, cfg, "POST", "/services/oauth2/revoke", form))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("revoke: expected 200, got %d", rec.Code)
 	}
@@ -554,3 +629,143 @@ func TestOAuthHandler_RoundTrip_RevokeInvalidatesBearer(t *testing.T) {
 	}
 }
 
+
+// RFC 6749 §2.3.1: confidential clients SHOULD authenticate via HTTP
+// Basic; the /token endpoint MUST accept that scheme.
+func TestOAuthHandler_HandleToken_BasicAuth(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("username", cfg.MockUsername)
+	form.Set("password", cfg.MockPassword)
+
+	req := httptest.NewRequest("POST", "/services/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(cfg.MockClientID, cfg.MockClientSecret)
+	rec := httptest.NewRecorder()
+	h.HandleToken(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with HTTP Basic client auth, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp models.OAuthResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.AccessToken == "" {
+		t.Error("expected access_token to be issued")
+	}
+}
+
+// Matching credentials in both Basic and form body are permitted.
+func TestOAuthHandler_HandleToken_BasicMatchesForm(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("username", cfg.MockUsername)
+	form.Set("password", cfg.MockPassword)
+
+	req := httptest.NewRequest("POST", "/services/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(cfg.MockClientID, cfg.MockClientSecret)
+	rec := httptest.NewRecorder()
+	h.HandleToken(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 when Basic and form creds agree, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+// Conflicting Basic and form credentials must be rejected per RFC 6749
+// §2.3.1 (the server MUST NOT accept ambiguous client identification).
+func TestOAuthHandler_HandleToken_BasicConflictsWithForm(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	form := url.Values{}
+	form.Set("grant_type", "password")
+	form.Set("client_id", "different-client")
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("username", cfg.MockUsername)
+	form.Set("password", cfg.MockPassword)
+
+	req := httptest.NewRequest("POST", "/services/oauth2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(cfg.MockClientID, cfg.MockClientSecret)
+	rec := httptest.NewRecorder()
+	h.HandleToken(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for conflicting client creds, got %d", rec.Code)
+	}
+	var resp models.OAuthError
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error != "invalid_request" {
+		t.Errorf("expected error=invalid_request, got %q", resp.Error)
+	}
+}
+
+// RFC 6750 §3: 401 responses to bearer-protected resources MUST carry a
+// WWW-Authenticate: Bearer challenge.
+func TestOAuthHandler_Userinfo_NoBearer_HasWWWAuthenticateBearer(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	req := httptest.NewRequest("GET", "/services/oauth2/userinfo", nil)
+	rec := httptest.NewRecorder()
+	h.HandleUserinfo(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+	got := rec.Header().Get("WWW-Authenticate")
+	if !strings.HasPrefix(got, "Bearer") {
+		t.Errorf("expected WWW-Authenticate to start with 'Bearer', got %q", got)
+	}
+	if !strings.Contains(got, `realm=`) {
+		t.Errorf("expected WWW-Authenticate to include realm, got %q", got)
+	}
+}
+
+// RFC 6749 §2.3.1: /introspect must also accept form-body client
+// credentials, not just Bearer or HTTP Basic.
+func TestOAuthHandler_Introspect_FormBodyCreds(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+	tok := issueToken(t, h, cfg)
+
+	form := url.Values{}
+	form.Set("token", tok.AccessToken)
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	rec := postForm(h.HandleIntrospect, "/services/oauth2/introspect", form, "POST")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with form-body creds, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp models.IntrospectResponse
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if !resp.Active {
+		t.Error("expected active=true when authenticated via form-body creds")
+	}
+}
+
+// Wrong form-body creds are rejected with 401 (no fall-through to anon).
+func TestOAuthHandler_Introspect_WrongFormBodyCreds_Rejected(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	form := url.Values{}
+	form.Set("token", "anything")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", "wrong")
+	rec := postForm(h.HandleIntrospect, "/services/oauth2/introspect", form, "POST")
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 with wrong form-body creds, got %d", rec.Code)
+	}
+}

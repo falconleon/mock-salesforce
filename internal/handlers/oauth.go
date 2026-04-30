@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,6 +19,41 @@ import (
 	"github.com/falconleon/mock-salesforce/internal/server/middleware"
 	"github.com/falconleon/mock-salesforce/pkg/models"
 )
+
+// errConflictingClientCredentials is returned when a request supplies
+// HTTP Basic and form-body client credentials with disagreeing values.
+var errConflictingClientCredentials = errors.New("conflicting client credentials")
+
+// extractClientCredentials returns the client_id/client_secret from the
+// request, accepting either the HTTP Basic Authorization header
+// (RFC 6749 §2.3.1, the recommended form) or the form-encoded body
+// parameters (the legacy form). If both methods are present with
+// disagreeing values it returns errConflictingClientCredentials so the
+// caller can emit invalid_request per RFC 6749 §3.2.1.
+func extractClientCredentials(r *http.Request) (id, secret string, ok bool, err error) {
+	if r.Form == nil {
+		if perr := r.ParseForm(); perr != nil {
+			return "", "", false, perr
+		}
+	}
+	basicID, basicSecret, hasBasic := r.BasicAuth()
+	formID := r.PostFormValue("client_id")
+	formSecret := r.PostFormValue("client_secret")
+	hasForm := formID != "" || formSecret != ""
+
+	switch {
+	case hasBasic && hasForm:
+		if basicID != formID || basicSecret != formSecret {
+			return "", "", false, errConflictingClientCredentials
+		}
+		return basicID, basicSecret, true, nil
+	case hasBasic:
+		return basicID, basicSecret, true, nil
+	case hasForm:
+		return formID, formSecret, true, nil
+	}
+	return "", "", false, nil
+}
 
 // OAuthHandler handles OAuth authentication requests.
 type OAuthHandler struct {
@@ -41,16 +77,20 @@ const (
 
 // HandleToken processes OAuth token requests.
 // POST /services/oauth2/token — supports grant_type of password,
-// refresh_token, and client_credentials.
+// refresh_token, and client_credentials. Client credentials may be
+// supplied via HTTP Basic (RFC 6749 §2.3.1) or form-encoded body.
 func (h *OAuthHandler) HandleToken(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		h.writeOAuthError(w, http.StatusBadRequest, "invalid_request", "Unable to parse request body")
 		return
 	}
 
-	grantType := r.FormValue("grant_type")
-	clientID := r.FormValue("client_id")
-	clientSecret := r.FormValue("client_secret")
+	clientID, clientSecret, _, err := extractClientCredentials(r)
+	if err != nil {
+		h.writeOAuthError(w, http.StatusBadRequest, "invalid_request", "Conflicting client credentials")
+		return
+	}
+	grantType := r.PostFormValue("grant_type")
 
 	h.logger.Debug().
 		Str("grant_type", grantType).
@@ -113,6 +153,27 @@ func (h *OAuthHandler) validateClient(w http.ResponseWriter, clientID, clientSec
 	}
 	if subtle.ConstantTimeCompare([]byte(clientSecret), []byte(h.config.MockClientSecret)) != 1 {
 		h.writeOAuthError(w, http.StatusBadRequest, "invalid_client", "Invalid client credentials")
+		return false
+	}
+	return true
+}
+
+// requireClientAuth enforces RFC 6749 §2.3.1 client authentication on
+// endpoints that mandate it (e.g. /revoke per RFC 7009 §2.1). On
+// failure it writes a 401 invalid_client response with the
+// WWW-Authenticate: Basic challenge and returns false.
+func (h *OAuthHandler) requireClientAuth(w http.ResponseWriter, r *http.Request) bool {
+	clientID, clientSecret, ok, err := extractClientCredentials(r)
+	if err != nil {
+		h.writeOAuthError(w, http.StatusBadRequest, "invalid_request", "Conflicting client credentials")
+		return false
+	}
+	valid := ok &&
+		subtle.ConstantTimeCompare([]byte(clientID), []byte(h.config.MockClientID)) == 1 &&
+		subtle.ConstantTimeCompare([]byte(clientSecret), []byte(h.config.MockClientSecret)) == 1
+	if !valid {
+		w.Header().Set("WWW-Authenticate", `Basic realm="salesforce"`)
+		h.writeOAuthError(w, http.StatusUnauthorized, "invalid_client", "Client authentication failed")
 		return false
 	}
 	return true
@@ -318,10 +379,15 @@ func (h *OAuthHandler) writeOAuthError(w http.ResponseWriter, status int, errorC
 
 // HandleRevoke processes OAuth token revocation requests.
 // POST or GET /services/oauth2/revoke — token may be supplied via form
-// param or query param. 200 on success, 400 on unknown token.
+// param or query param. Per RFC 7009 §2.1 the request MUST be
+// authenticated as a confidential client; per RFC 7009 §2.2 the
+// response is 200 regardless of whether the token is known.
 func (h *OAuthHandler) HandleRevoke(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		h.writeOAuthError(w, http.StatusBadRequest, "invalid_request", "Unable to parse request body")
+		return
+	}
+	if !h.requireClientAuth(w, r) {
 		return
 	}
 	token := r.FormValue("token")
@@ -332,11 +398,9 @@ func (h *OAuthHandler) HandleRevoke(w http.ResponseWriter, r *http.Request) {
 		h.writeOAuthError(w, http.StatusBadRequest, "invalid_request", "missing token parameter")
 		return
 	}
-	if !middleware.RevokeToken(token) {
-		h.writeOAuthError(w, http.StatusBadRequest, "unsupported_token_type", "unknown token")
-		return
-	}
-	h.logger.Info().Msg("OAuth token revoked")
+	// RFC 7009 §2.2: respond 200 whether or not the token is known.
+	middleware.RevokeToken(token)
+	h.logger.Info().Msg("OAuth token revocation processed")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -451,19 +515,21 @@ func (h *OAuthHandler) HandleIntrospect(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// authenticateIntrospect accepts either a valid Bearer token or HTTP
-// Basic with the configured client_id:client_secret.
+// authenticateIntrospect accepts a valid Bearer token, HTTP Basic, or
+// form-body client_id+client_secret per RFC 6749 §2.3.1.
 func (h *OAuthHandler) authenticateIntrospect(r *http.Request) bool {
 	if token := bearerToken(r); token != "" {
 		if info := middleware.LookupToken(token); info != nil {
 			return true
 		}
 	}
-	if user, pass, ok := r.BasicAuth(); ok {
-		if subtle.ConstantTimeCompare([]byte(user), []byte(h.config.MockClientID)) == 1 &&
-			subtle.ConstantTimeCompare([]byte(pass), []byte(h.config.MockClientSecret)) == 1 {
-			return true
-		}
+	clientID, clientSecret, ok, err := extractClientCredentials(r)
+	if err != nil || !ok {
+		return false
+	}
+	if subtle.ConstantTimeCompare([]byte(clientID), []byte(h.config.MockClientID)) == 1 &&
+		subtle.ConstantTimeCompare([]byte(clientSecret), []byte(h.config.MockClientSecret)) == 1 {
+		return true
 	}
 	return false
 }
@@ -478,9 +544,11 @@ func bearerToken(r *http.Request) string {
 }
 
 // writeBearerError writes the Salesforce array-shape 401 error used when
-// a Bearer token is missing or invalid.
+// a Bearer token is missing or invalid. Includes the WWW-Authenticate:
+// Bearer challenge required by RFC 6750 §3.
 func writeBearerError(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("WWW-Authenticate", `Bearer realm="salesforce", error="invalid_token", error_description="Session expired or invalid"`)
 	w.WriteHeader(http.StatusUnauthorized)
 	json.NewEncoder(w).Encode([]models.APIError{{
 		Message:   "Session expired or invalid",
