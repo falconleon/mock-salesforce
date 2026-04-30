@@ -42,6 +42,16 @@ func (s *Server) setupRoutes() http.Handler {
 	mux.HandleFunc("GET /health", healthHandler.HandleHealth)
 
 	basePath := s.config.BasePath
+
+	// OAuth authorization_code flow front-end (RFC 6749 §4.1 + PKCE).
+	// Templates resolve the layout chrome, so we parse with the same
+	// basePath func map used by other UI pages.
+	authorizeFuncMap := template.FuncMap{"basePath": func() string { return basePath }}
+	authorizeTpl := template.Must(template.New("").Funcs(authorizeFuncMap).ParseFS(templateFS, "templates/layout.html", "templates/authorize.html"))
+	authCodeStore := handlers.NewAuthCodeStore()
+	authorizeHandler := handlers.NewAuthorizeHandler(s.config, authCodeStore, authorizeTpl, s.logger)
+	mux.HandleFunc("GET /services/oauth2/authorize", authorizeHandler.HandleGet)
+	mux.HandleFunc("POST /services/oauth2/authorize", authorizeHandler.HandlePost)
 	loginUsers := s.config.MockUsers
 	if len(loginUsers) == 0 && s.config.MockUsername != "" {
 		loginUsers = map[string]string{s.config.MockUsername: s.config.MockPassword}

@@ -28,6 +28,7 @@ var publicPaths = map[string]bool{
 	"/services/oauth2/token":      true,
 	"/services/oauth2/revoke":     true,
 	"/services/oauth2/introspect": true,
+	"/services/oauth2/authorize":  true,
 	"/health":                     true,
 	"/":                           true,
 	"/login":                      true,
