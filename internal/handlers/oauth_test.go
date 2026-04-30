@@ -713,7 +713,8 @@ func TestOAuthHandler_HandleToken_BasicConflictsWithForm(t *testing.T) {
 }
 
 // RFC 6750 §3: 401 responses to bearer-protected resources MUST carry a
-// WWW-Authenticate: Bearer challenge.
+// WWW-Authenticate: Bearer challenge. RFC 6750 §3.1: when the request did
+// NOT include an access token, the challenge MUST NOT carry an error param.
 func TestOAuthHandler_Userinfo_NoBearer_HasWWWAuthenticateBearer(t *testing.T) {
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
@@ -726,11 +727,38 @@ func TestOAuthHandler_Userinfo_NoBearer_HasWWWAuthenticateBearer(t *testing.T) {
 		t.Fatalf("expected 401, got %d", rec.Code)
 	}
 	got := rec.Header().Get("WWW-Authenticate")
-	if !strings.HasPrefix(got, "Bearer") {
-		t.Errorf("expected WWW-Authenticate to start with 'Bearer', got %q", got)
+	want := `Bearer realm="Mock Salesforce"`
+	if got != want {
+		t.Errorf("WWW-Authenticate mismatch:\n got: %q\nwant: %q", got, want)
 	}
-	if !strings.Contains(got, `realm=`) {
-		t.Errorf("expected WWW-Authenticate to include realm, got %q", got)
+	if strings.Contains(got, "error=") {
+		t.Errorf("WWW-Authenticate must not include error= when no token was sent, got %q", got)
+	}
+}
+
+// RFC 6750 §3.1: when the request DID include a bearer token that was
+// rejected, the challenge MUST include error="invalid_token".
+func TestOAuthHandler_Userinfo_BadBearer_HasWWWAuthenticateInvalidToken(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	req := httptest.NewRequest("GET", "/services/oauth2/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer fake")
+	rec := httptest.NewRecorder()
+	h.HandleUserinfo(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+	got := rec.Header().Get("WWW-Authenticate")
+	if !strings.HasPrefix(got, "Bearer ") {
+		t.Errorf("expected WWW-Authenticate to start with 'Bearer ', got %q", got)
+	}
+	if !strings.Contains(got, `realm="Mock Salesforce"`) {
+		t.Errorf(`expected WWW-Authenticate to include realm="Mock Salesforce", got %q`, got)
+	}
+	if !strings.Contains(got, `error="invalid_token"`) {
+		t.Errorf(`expected WWW-Authenticate to include error="invalid_token", got %q`, got)
 	}
 }
 

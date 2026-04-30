@@ -525,12 +525,12 @@ func (h *OAuthHandler) HandleRevoke(w http.ResponseWriter, r *http.Request) {
 func (h *OAuthHandler) HandleUserinfo(w http.ResponseWriter, r *http.Request) {
 	token := bearerToken(r)
 	if token == "" {
-		writeBearerError(w)
+		writeBearerError(w, r)
 		return
 	}
 	info := middleware.LookupToken(token)
 	if info == nil || info.Type == "refresh" {
-		writeBearerError(w)
+		writeBearerError(w, r)
 		return
 	}
 	username := info.Username
@@ -597,7 +597,7 @@ func (h *OAuthHandler) buildUserinfo(info *middleware.TokenInfo, username string
 // (client_id:client_secret) authentication.
 func (h *OAuthHandler) HandleIntrospect(w http.ResponseWriter, r *http.Request) {
 	if !h.authenticateIntrospect(r) {
-		writeBearerError(w)
+		writeBearerError(w, r)
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -660,10 +660,16 @@ func bearerToken(r *http.Request) string {
 
 // writeBearerError writes the Salesforce array-shape 401 error used when
 // a Bearer token is missing or invalid. Includes the WWW-Authenticate:
-// Bearer challenge required by RFC 6750 §3.
-func writeBearerError(w http.ResponseWriter) {
+// Bearer challenge required by RFC 6750 §3. Per RFC 6750 §3.1, the error
+// parameter is only emitted when the request actually presented a bearer
+// token; a missing Authorization header gets only the realm challenge.
+func writeBearerError(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("WWW-Authenticate", `Bearer realm="salesforce", error="invalid_token", error_description="Session expired or invalid"`)
+	if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="Mock Salesforce", error="invalid_token", error_description="Session expired or invalid"`)
+	} else {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="Mock Salesforce"`)
+	}
 	w.WriteHeader(http.StatusUnauthorized)
 	json.NewEncoder(w).Encode([]models.APIError{{
 		Message:   "Session expired or invalid",
