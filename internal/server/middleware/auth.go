@@ -87,13 +87,18 @@ func RegisterTokenInfo(info *TokenInfo) {
 }
 
 // LookupToken returns the metadata for a token, or nil if unknown,
-// revoked, or rotated. Use LookupTokenRaw to inspect rotated entries
-// (e.g. for refresh-token reuse detection).
+// revoked, rotated, or expired. ExpiresAt == 0 means "no expiry"
+// (refresh tokens currently use this). Use LookupTokenRaw to inspect
+// rotated or expired entries (e.g. for refresh-token reuse detection
+// or to emit the RFC 6750 §3.1 "expired" challenge).
 func LookupToken(token string) *TokenInfo {
 	mu.RLock()
 	defer mu.RUnlock()
 	info := mockTokens[token]
 	if info == nil || info.Revoked {
+		return nil
+	}
+	if info.ExpiresAt > 0 && time.Now().Unix() >= info.ExpiresAt {
 		return nil
 	}
 	return info
@@ -193,6 +198,17 @@ func Auth(logger zerolog.Logger, sessionSecret string) func(http.Handler) http.H
 					}
 					SetSessionCookie(w, username, sessionSecret)
 					next.ServeHTTP(w, r)
+					return
+				}
+				// RFC 6750 §3.1: if the bearer token is a known access
+				// token whose ExpiresAt has passed, surface the
+				// "invalid_token"/"The access token expired" challenge so
+				// clients can refresh rather than retrying with the same
+				// stale credential.
+				if raw := LookupTokenRaw(token); raw != nil && raw.Type == "access" && !raw.Revoked &&
+					raw.ExpiresAt > 0 && time.Now().Unix() >= raw.ExpiresAt {
+					w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token", error_description="The access token expired"`)
+					writeAuthError(w, logger, "The access token expired")
 					return
 				}
 			}

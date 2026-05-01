@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 
@@ -587,6 +588,40 @@ func TestOAuthHandler_Introspect_NoAuthRejected(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401 without Bearer/Basic auth, got %d", rec.Code)
+	}
+}
+
+// TestIntrospect_ExpiredTokenInactive verifies RFC 7662 §2.2: an
+// introspection request for an expired access token returns exactly
+// {"active": false} with no other claims leaked.
+func TestIntrospect_ExpiredTokenInactive(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	middleware.RegisterTokenInfo(&middleware.TokenInfo{
+		Token:     "expired-access-introspect",
+		Type:      "access",
+		Username:  cfg.MockUsername,
+		ClientID:  cfg.MockClientID,
+		Scope:     "api refresh_token",
+		IssuedAt:  time.Now().Add(-2 * time.Hour).Unix(),
+		ExpiresAt: time.Now().Add(-time.Minute).Unix(),
+	})
+
+	form := url.Values{}
+	form.Set("token", "expired-access-introspect")
+	req := httptest.NewRequest("POST", "/services/oauth2/introspect", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(cfg.MockClientID, cfg.MockClientSecret)
+	rec := httptest.NewRecorder()
+	h.HandleIntrospect(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	body := strings.TrimSpace(rec.Body.String())
+	if body != `{"active":false}` {
+		t.Errorf("expected exactly {\"active\":false}, got %q", body)
 	}
 }
 

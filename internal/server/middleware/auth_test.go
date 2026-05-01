@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 
@@ -160,6 +161,37 @@ func TestAuth_RevokedTokenReturnsSFArrayError(t *testing.T) {
 	}
 	if len(errs) != 1 || errs[0].ErrorCode != "INVALID_SESSION_ID" {
 		t.Errorf("unexpected error body: %+v", errs)
+	}
+}
+
+func TestAuth_RejectsExpiredToken(t *testing.T) {
+	logger := zerolog.Nop()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	authMW := middleware.Auth(logger, "test-secret")(handler)
+
+	// Mint an access token whose ExpiresAt is already in the past so the
+	// middleware MUST treat it as RFC 6750 §3.1 invalid_token.
+	middleware.RegisterTokenInfo(&middleware.TokenInfo{
+		Token:     "expired-access-token",
+		Type:      "access",
+		IssuedAt:  time.Now().Add(-2 * time.Hour).Unix(),
+		ExpiresAt: time.Now().Add(-time.Minute).Unix(),
+	})
+
+	req := httptest.NewRequest("GET", "/services/data/v66.0/query", nil)
+	req.Header.Set("Authorization", "Bearer expired-access-token")
+	rec := httptest.NewRecorder()
+	authMW.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for expired token, got %d", rec.Code)
+	}
+	got := rec.Header().Get("WWW-Authenticate")
+	want := `Bearer error="invalid_token", error_description="The access token expired"`
+	if got != want {
+		t.Errorf("WWW-Authenticate mismatch:\n got: %q\nwant: %q", got, want)
 	}
 }
 
