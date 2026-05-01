@@ -417,6 +417,18 @@ func LogoutHandler(basePath string) http.HandlerFunc {
 	}
 }
 
+// ResetTokenStore resets the in-memory token store to its initial state
+// (containing only the built-in "mock-access-token" sentinel). It is
+// intended exclusively for test use to prevent token-state leakage
+// between test functions when running with -count=N or -shuffle=on.
+func ResetTokenStore() {
+	mu.Lock()
+	mockTokens = map[string]*TokenInfo{
+		"mock-access-token": {Token: "mock-access-token", Type: "access"},
+	}
+	mu.Unlock()
+}
+
 // sanitizeNext rejects absolute URLs and protocol-relative paths so the
 // next parameter cannot be used as an open redirect.
 func sanitizeNext(s string) string {

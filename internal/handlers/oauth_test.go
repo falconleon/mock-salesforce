@@ -31,7 +31,21 @@ func postForm(handler http.HandlerFunc, path string, form url.Values, method str
 	return rec
 }
 
+// resetHandlerState resets the package-level middleware token store to its
+// initial state. Call at the top of every test function that issues,
+// revokes, or inspects tokens to prevent order-dependent failures when
+// running with -count=N -shuffle=on (e.g. token hash collisions when
+// time.Now().UnixNano() repeats between iterations, or leftover revoked
+// family entries polluting subsequent runs).
+func resetHandlerState(t *testing.T) {
+	t.Helper()
+	middleware.ResetTokenStore()
+	t.Cleanup(middleware.ResetTokenStore)
+}
+
 func TestOAuthHandler_HandleToken_Success(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	logger := zerolog.Nop()
 	handler := handlers.NewOAuthHandler(cfg, logger)
@@ -172,7 +186,6 @@ func TestOAuthHandler_HandleToken_InvalidClientID(t *testing.T) {
 	}
 }
 
-
 func TestOAuthHandler_HandleToken_InvalidClientSecret(t *testing.T) {
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
@@ -199,6 +212,8 @@ func TestOAuthHandler_HandleToken_InvalidClientSecret(t *testing.T) {
 // HMAC-SHA256(client_secret, id + issued_at) base64-encoded — which is what
 // real Salesforce SDKs check when validating the token response.
 func TestOAuthHandler_SignatureMatchesSpec(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 
@@ -232,6 +247,8 @@ func TestOAuthHandler_SignatureMatchesSpec(t *testing.T) {
 }
 
 func TestOAuthHandler_PasswordGrant_AcceptsSecurityTokenSuffix(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 
@@ -249,6 +266,8 @@ func TestOAuthHandler_PasswordGrant_AcceptsSecurityTokenSuffix(t *testing.T) {
 }
 
 func TestOAuthHandler_ClientCredentialsGrant(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 
@@ -272,6 +291,8 @@ func TestOAuthHandler_ClientCredentialsGrant(t *testing.T) {
 }
 
 func TestOAuthHandler_RefreshTokenGrant(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 
@@ -336,7 +357,6 @@ func TestOAuthHandler_RefreshTokenGrant_InvalidToken(t *testing.T) {
 	}
 }
 
-
 // issueToken is a helper that runs a successful password-grant exchange
 // and returns the parsed response.
 func issueToken(t *testing.T, h *handlers.OAuthHandler, cfg *config.Config) models.OAuthResponse {
@@ -375,6 +395,8 @@ func revokeRequest(t *testing.T, cfg *config.Config, method, target string, form
 }
 
 func TestOAuthHandler_Revoke_Success(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	tok := issueToken(t, h, cfg)
@@ -407,6 +429,8 @@ func TestOAuthHandler_Revoke_UnknownTokenReturns200(t *testing.T) {
 }
 
 func TestOAuthHandler_Revoke_AcceptsQueryParam(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	tok := issueToken(t, h, cfg)
@@ -474,6 +498,8 @@ func TestOAuthHandler_Revoke_FormBodyCredsAllowed(t *testing.T) {
 }
 
 func TestOAuthHandler_Userinfo_Success(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	tok := issueToken(t, h, cfg)
@@ -525,6 +551,8 @@ func TestOAuthHandler_Userinfo_NoBearer_Returns401Array(t *testing.T) {
 }
 
 func TestOAuthHandler_Introspect_ActiveTrue(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	tok := issueToken(t, h, cfg)
@@ -576,6 +604,8 @@ func TestOAuthHandler_Introspect_ActiveFalseForUnknown(t *testing.T) {
 }
 
 func TestOAuthHandler_Introspect_NoAuthRejected(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	tok := issueToken(t, h, cfg)
@@ -596,6 +626,8 @@ func TestOAuthHandler_Introspect_NoAuthRejected(t *testing.T) {
 // introspection request for an expired access token returns exactly
 // {"active": false} with no other claims leaked.
 func TestIntrospect_ExpiredTokenInactive(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 
@@ -627,6 +659,8 @@ func TestIntrospect_ExpiredTokenInactive(t *testing.T) {
 }
 
 func TestOAuthHandler_Introspect_BearerAuthAllowed(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	tok := issueToken(t, h, cfg)
@@ -647,6 +681,8 @@ func TestOAuthHandler_Introspect_BearerAuthAllowed(t *testing.T) {
 // TestOAuthHandler_RoundTrip_RevokeInvalidatesBearer is the end-to-end
 // scenario from the task spec: token → query → revoke → query=401.
 func TestOAuthHandler_RoundTrip_RevokeInvalidatesBearer(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	tok := issueToken(t, h, cfg)
@@ -668,10 +704,11 @@ func TestOAuthHandler_RoundTrip_RevokeInvalidatesBearer(t *testing.T) {
 	}
 }
 
-
 // RFC 6749 §2.3.1: confidential clients SHOULD authenticate via HTTP
 // Basic; the /token endpoint MUST accept that scheme.
 func TestOAuthHandler_HandleToken_BasicAuth(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 
@@ -698,6 +735,8 @@ func TestOAuthHandler_HandleToken_BasicAuth(t *testing.T) {
 
 // Matching credentials in both Basic and form body are permitted.
 func TestOAuthHandler_HandleToken_BasicMatchesForm(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 
@@ -801,6 +840,8 @@ func TestOAuthHandler_Userinfo_BadBearer_HasWWWAuthenticateInvalidToken(t *testi
 // RFC 6749 §2.3.1: /introspect must also accept form-body client
 // credentials, not just Bearer or HTTP Basic.
 func TestOAuthHandler_Introspect_FormBodyCreds(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	tok := issueToken(t, h, cfg)
@@ -837,7 +878,6 @@ func TestOAuthHandler_Introspect_WrongFormBodyCreds_Rejected(t *testing.T) {
 	}
 }
 
-
 // pkcePair returns a (verifier, S256-challenge) pair that satisfies
 // RFC 7636 §4.2.
 func pkcePair(t *testing.T, verifier string) (string, string) {
@@ -867,6 +907,8 @@ func authCodeHarness(t *testing.T, method string) (*handlers.OAuthHandler, *hand
 }
 
 func TestOAuthHandler_AuthorizationCodeGrant_S256_Success(t *testing.T) {
+	resetHandlerState(t)
+
 	h, _, ac, verifier := authCodeHarness(t, "S256")
 	cfg := config.Default()
 
@@ -918,6 +960,8 @@ func TestOAuthHandler_AuthorizationCodeGrant_Plain_Rejected(t *testing.T) {
 }
 
 func TestOAuthHandler_AuthorizationCodeGrant_Reuse_Fails(t *testing.T) {
+	resetHandlerState(t)
+
 	h, _, ac, verifier := authCodeHarness(t, "S256")
 	cfg := config.Default()
 
@@ -1031,6 +1075,8 @@ func TestOAuthHandler_AuthorizationCodeGrant_UnknownCode_Fails(t *testing.T) {
 // refresh token must revoke the entire token family so all access
 // tokens derived from it stop working (RFC 6749 §10.4).
 func TestOAuthHandler_RefreshTokenGrant_ReuseRevokesFamily(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 	seed := issueToken(t, h, cfg)
@@ -1085,6 +1131,8 @@ func TestOAuthHandler_RefreshTokenGrant_ReuseRevokesFamily(t *testing.T) {
 // G3: when MockRefreshRotation is disabled the refresh_token must be
 // echoed unchanged (legacy behaviour).
 func TestOAuthHandler_RefreshTokenGrant_RotationDisabled_EchoesRefresh(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	cfg.MockRefreshRotation = false
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
@@ -1153,6 +1201,8 @@ func TestOAuthHandler_AuthorizationCodeGrant_RedirectURIRemovedFromAllowlist_Fai
 // I-2: Concurrent exchanges of the same refresh_token must result in
 // exactly one success and N-1 invalid_grant rejections. Run under -race.
 func TestRefreshTokenGrant_ConcurrentExchange_ExactlyOneSucceeds(t *testing.T) {
+	resetHandlerState(t)
+
 	cfg := config.Default()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
 

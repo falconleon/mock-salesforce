@@ -142,6 +142,7 @@ func TestAdminUsers_CRUDFlow(t *testing.T) {
 }
 
 func TestAdminUsers_TokenMintUseRevoke(t *testing.T) {
+	resetHandlerState(t)
 	store := users.NewMemoryStore()
 	h := adminMux(t, store, testAdminToken)
 
@@ -231,4 +232,3 @@ func TestAdminUsers_DeleteUser_RemovesTokensFromStore(t *testing.T) {
 		t.Errorf("list-after-delete: expected 404, got %d", rec.Code)
 	}
 }
-
