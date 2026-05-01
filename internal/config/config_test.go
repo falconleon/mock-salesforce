@@ -162,6 +162,107 @@ func TestLoadRedirectURIsFromEnv_EmptyTriggersPermissive(t *testing.T) {
 	}
 }
 
+func TestFromEnv_RefreshRotationFalse(t *testing.T) {
+	t.Setenv("MOCK_REFRESH_ROTATION", "false")
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatalf("FromEnv() unexpected error: %v", err)
+	}
+	if cfg.MockRefreshRotation {
+		t.Errorf("MockRefreshRotation = true, want false (env MOCK_REFRESH_ROTATION=false)")
+	}
+}
+
+func TestFromEnv_RefreshRotationZero(t *testing.T) {
+	t.Setenv("MOCK_REFRESH_ROTATION", "0")
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatalf("FromEnv() unexpected error: %v", err)
+	}
+	if cfg.MockRefreshRotation {
+		t.Errorf("MockRefreshRotation = true, want false (env MOCK_REFRESH_ROTATION=0)")
+	}
+}
+
+func TestFromEnv_RefreshRotationDefaultTrue(t *testing.T) {
+	os.Unsetenv("MOCK_REFRESH_ROTATION")
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatalf("FromEnv() unexpected error: %v", err)
+	}
+	if !cfg.MockRefreshRotation {
+		t.Errorf("MockRefreshRotation = false, want true (default when env unset)")
+	}
+}
+
+func TestFromEnv_RedirectURIs(t *testing.T) {
+	t.Setenv("MOCK_REDIRECT_URIS", "https://a/cb,https://b/cb")
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatalf("FromEnv() unexpected error: %v", err)
+	}
+	if len(cfg.MockRedirectURIs) != 2 ||
+		cfg.MockRedirectURIs[0] != "https://a/cb" ||
+		cfg.MockRedirectURIs[1] != "https://b/cb" {
+		t.Errorf("MockRedirectURIs = %v, want [https://a/cb https://b/cb]", cfg.MockRedirectURIs)
+	}
+}
+
+func TestFromEnv_AllDocumentedVars(t *testing.T) {
+	// Every env var listed in the README "Environment Variables" table
+	// (plus MOCK_REFRESH_ROTATION) must round-trip through FromEnv.
+	t.Setenv("PORT", "9091")
+	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("AUTH_ENABLED", "false")
+	t.Setenv("SEED_DATA_PATH", "/tmp/seed")
+	t.Setenv("MOCK_CLIENT_ID", "cid")
+	t.Setenv("MOCK_CLIENT_SECRET", "csecret")
+	t.Setenv("MOCK_USERNAME", "u@x.com")
+	t.Setenv("MOCK_PASSWORD", "pw")
+	t.Setenv("MOCK_USERS", "alice@x.com:a,bob@x.com:b")
+	t.Setenv("SESSION_SECRET", "shh")
+	t.Setenv("API_VERSION", "v99.0")
+	t.Setenv("INSTANCE_URL", "http://example.test")
+	t.Setenv("BASE_PATH", "/mock/sf/")
+	t.Setenv("BASE_URL", "http://ext.test/sf/")
+	t.Setenv("ADMIN_TOKEN", "admin-secret")
+	t.Setenv("MOCK_REFRESH_ROTATION", "false")
+
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatalf("FromEnv() unexpected error: %v", err)
+	}
+	checks := []struct {
+		name string
+		got  any
+		want any
+	}{
+		{"Port", cfg.Port, 9091},
+		{"LogLevel", cfg.LogLevel, "debug"},
+		{"AuthEnabled", cfg.AuthEnabled, false},
+		{"SeedDataPath", cfg.SeedDataPath, "/tmp/seed"},
+		{"MockClientID", cfg.MockClientID, "cid"},
+		{"MockClientSecret", cfg.MockClientSecret, "csecret"},
+		{"MockUsername", cfg.MockUsername, "u@x.com"},
+		{"MockPassword", cfg.MockPassword, "pw"},
+		{"SessionSecret", cfg.SessionSecret, "shh"},
+		{"APIVersion", cfg.APIVersion, "v99.0"},
+		{"InstanceURL", cfg.InstanceURL, "http://example.test"},
+		{"BasePath", cfg.BasePath, "/mock/sf"},
+		{"BaseURL", cfg.BaseURL, "http://ext.test/sf"},
+		{"AdminToken", cfg.AdminToken, "admin-secret"},
+		{"MockRefreshRotation", cfg.MockRefreshRotation, false},
+	}
+	for _, c := range checks {
+		if c.got != c.want {
+			t.Errorf("%s = %v, want %v", c.name, c.got, c.want)
+		}
+	}
+	if cfg.MockUsers["alice@x.com"] != "a" || cfg.MockUsers["bob@x.com"] != "b" {
+		t.Errorf("MockUsers = %v, want alice:a bob:b", cfg.MockUsers)
+	}
+}
+
 func TestIsRedirectURIAllowed(t *testing.T) {
 	cfg := &Config{MockRedirectURIs: []string{"https://a/cb", "https://b/cb"}}
 	if !cfg.IsRedirectURIAllowed("https://a/cb") {

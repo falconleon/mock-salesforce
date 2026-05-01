@@ -31,46 +31,74 @@ import (
 )
 
 func main() {
-	// Parse command line flags
+	// Parse command line flags. Flag defaults match config.Default(); env
+	// vars are loaded via config.FromEnv() and CLI flags override env values
+	// (precedence: defaults < env < flags).
 	port := flag.Int("port", 8080, "Server port")
 	scenario := flag.String("scenario", "", "Load specific demo scenario")
 	seedPath := flag.String("seed", "./testdata/seed", "Path to seed data")
 	logLevel := flag.String("log-level", "info", "Log level (debug, info, warn, error)")
 	authEnabled := flag.Bool("auth", true, "Enable OAuth token validation")
 	dbPath := flag.String("db-path", "", "Path to SQLite database (empty for in-memory)")
-	basePath := flag.String("base-path", envDefault("BASE_PATH", ""), "URL prefix for template links")
-	baseURL := flag.String("base-url", envDefault("BASE_URL", ""), "Externally-reachable URL for OAuth instance_url (e.g. http://sf-mock:8080/mock/salesforce)")
-	mockUsers := flag.String("mock-users", envDefault("MOCK_USERS", ""), "Comma-separated email:password pairs")
-	sessionSecret := flag.String("session-secret", envDefault("SESSION_SECRET", "sf-mock-dev-secret"), "HMAC key for session cookies")
-	adminToken := flag.String("admin-token", envDefault("ADMIN_TOKEN", ""), "X-Admin-Token value for /admin/users endpoints; empty disables them")
+	basePath := flag.String("base-path", "", "URL prefix for template links")
+	baseURL := flag.String("base-url", "", "Externally-reachable URL for OAuth instance_url (e.g. http://sf-mock:8080/mock/salesforce)")
+	mockUsers := flag.String("mock-users", "", "Comma-separated email:password pairs")
+	sessionSecret := flag.String("session-secret", "sf-mock-dev-secret", "HMAC key for session cookies")
+	adminToken := flag.String("admin-token", "", "X-Admin-Token value for /admin/users endpoints; empty disables them")
 	flag.Parse()
 
-	// Configure logger
-	logger := setupLogger(*logLevel)
+	// Build configuration: defaults <- env vars <- CLI flags.
+	cfg, err := config.FromEnv()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "FATAL: invalid environment configuration: %v\n", err)
+		os.Exit(1)
+	}
 
-	// Build configuration
-	cfg := config.Default()
-	cfg.Port = *port
-	cfg.SeedDataPath = *seedPath
-	cfg.LogLevel = *logLevel
-	cfg.AuthEnabled = *authEnabled
-	cfg.InstanceURL = fmt.Sprintf("http://localhost:%d", *port)
-	cfg.BasePath = strings.TrimRight(*basePath, "/")
-	if *baseURL != "" {
+	// Track which flags were explicitly set so they win over env values.
+	flagsSet := map[string]bool{}
+	flag.Visit(func(f *flag.Flag) { flagsSet[f.Name] = true })
+
+	if flagsSet["port"] {
+		cfg.Port = *port
+	}
+	if flagsSet["seed"] {
+		cfg.SeedDataPath = *seedPath
+	}
+	if flagsSet["log-level"] {
+		cfg.LogLevel = *logLevel
+	}
+	if flagsSet["auth"] {
+		cfg.AuthEnabled = *authEnabled
+	}
+	if flagsSet["base-path"] {
+		cfg.BasePath = strings.TrimRight(*basePath, "/")
+	}
+	if flagsSet["base-url"] {
 		cfg.BaseURL = strings.TrimRight(*baseURL, "/")
 	}
-	parsedUsers, err := config.ParseUsers(*mockUsers)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Invalid MOCK_USERS / -mock-users value")
+	if flagsSet["mock-users"] {
+		parsed, perr := config.ParseUsers(*mockUsers)
+		if perr != nil {
+			fmt.Fprintf(os.Stderr, "FATAL: invalid -mock-users value: %v\n", perr)
+			os.Exit(1)
+		}
+		cfg.MockUsers = parsed
 	}
-	cfg.MockUsers = parsedUsers
-	cfg.SessionSecret = *sessionSecret
-	cfg.AdminToken = *adminToken
-	redirectURIs, permissive := config.LoadRedirectURIsFromEnv()
-	cfg.MockRedirectURIs = redirectURIs
-	if permissive {
-		logger.Warn().Msg("redirect_uri allowlist disabled")
+	if flagsSet["session-secret"] {
+		cfg.SessionSecret = *sessionSecret
 	}
+	if flagsSet["admin-token"] {
+		cfg.AdminToken = *adminToken
+	}
+
+	// Derive InstanceURL from port unless INSTANCE_URL was set in the env
+	// (FromEnv has already populated cfg.InstanceURL from the env value).
+	if _, set := os.LookupEnv("INSTANCE_URL"); !set {
+		cfg.InstanceURL = fmt.Sprintf("http://localhost:%d", cfg.Port)
+	}
+
+	// Configure logger using the merged log level.
+	logger := setupLogger(cfg.LogLevel)
 
 	// Log startup configuration
 	logger.Info().
@@ -191,14 +219,6 @@ func orDefault(val, def string) string {
 	}
 	return val
 }
-
-func envDefault(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
-}
-
 
 // buildUserStore constructs the runtime user store, seeds it from the
 // MOCK_USERS env var, and re-registers any persisted bearer tokens with
