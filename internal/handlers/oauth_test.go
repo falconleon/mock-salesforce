@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1146,5 +1147,138 @@ func TestOAuthHandler_AuthorizationCodeGrant_RedirectURIRemovedFromAllowlist_Fai
 	}
 	if !strings.Contains(resp.ErrorDescription, "no longer registered") {
 		t.Errorf("expected description to mention no longer registered, got %q", resp.ErrorDescription)
+	}
+}
+
+// I-2: Concurrent exchanges of the same refresh_token must result in
+// exactly one success and N-1 invalid_grant rejections. Run under -race.
+func TestRefreshTokenGrant_ConcurrentExchange_ExactlyOneSucceeds(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	// Mint a fresh refresh_token via password grant.
+	seed := issueToken(t, h, cfg)
+	if seed.RefreshToken == "" {
+		t.Fatal("expected refresh_token from password grant")
+	}
+
+	const N = 20
+	codes := make([]int, N)
+	var wg sync.WaitGroup
+	wg.Add(N)
+	for i := 0; i < N; i++ {
+		i := i
+		go func() {
+			defer wg.Done()
+			form := url.Values{}
+			form.Set("grant_type", "refresh_token")
+			form.Set("client_id", cfg.MockClientID)
+			form.Set("client_secret", cfg.MockClientSecret)
+			form.Set("refresh_token", seed.RefreshToken)
+			rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+			codes[i] = rec.Code
+		}()
+	}
+	wg.Wait()
+
+	successes, failures := 0, 0
+	for _, code := range codes {
+		switch code {
+		case http.StatusOK:
+			successes++
+		case http.StatusBadRequest:
+			failures++
+		default:
+			t.Errorf("unexpected status code %d", code)
+		}
+	}
+	if successes != 1 {
+		t.Errorf("expected exactly 1 successful exchange, got %d", successes)
+	}
+	if failures != N-1 {
+		t.Errorf("expected %d failed exchanges, got %d", N-1, failures)
+	}
+}
+
+// M-2: Unknown username and wrong password for a known user must return
+// identical response bodies and error codes — no information leaked via
+// the response (timing oracle structural test: both paths go through the
+// same constant-time comparison in validateUser).
+func TestPasswordGrant_UnknownUserAndWrongPassword_TakeSamePath(t *testing.T) {
+	cfg := config.Default()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop())
+
+	// Case 1: unknown username.
+	recUnknown := postForm(h.HandleToken, "/services/oauth2/token", url.Values{
+		"grant_type":    []string{"password"},
+		"client_id":     []string{cfg.MockClientID},
+		"client_secret": []string{cfg.MockClientSecret},
+		"username":      []string{"nobody@unknown.example"},
+		"password":      []string{cfg.MockPassword},
+	}, "POST")
+
+	// Case 2: correct username, wrong password.
+	recWrongPw := postForm(h.HandleToken, "/services/oauth2/token", url.Values{
+		"grant_type":    []string{"password"},
+		"client_id":     []string{cfg.MockClientID},
+		"client_secret": []string{cfg.MockClientSecret},
+		"username":      []string{cfg.MockUsername},
+		"password":      []string{"definitely-wrong-password"},
+	}, "POST")
+
+	if recUnknown.Code != http.StatusBadRequest {
+		t.Errorf("unknown user: expected 400, got %d", recUnknown.Code)
+	}
+	if recWrongPw.Code != http.StatusBadRequest {
+		t.Errorf("wrong password: expected 400, got %d", recWrongPw.Code)
+	}
+
+	var errUnknown, errWrongPw models.OAuthError
+	json.NewDecoder(recUnknown.Body).Decode(&errUnknown)
+	json.NewDecoder(recWrongPw.Body).Decode(&errWrongPw)
+
+	if errUnknown.Error != "invalid_grant" {
+		t.Errorf("unknown user: expected invalid_grant, got %q", errUnknown.Error)
+	}
+	if errUnknown.Error != errWrongPw.Error {
+		t.Errorf("error codes differ: unknown_user=%q wrong_pw=%q (information leak)",
+			errUnknown.Error, errWrongPw.Error)
+	}
+	if errUnknown.ErrorDescription != errWrongPw.ErrorDescription {
+		t.Errorf("error descriptions differ: unknown_user=%q wrong_pw=%q (information leak)",
+			errUnknown.ErrorDescription, errWrongPw.ErrorDescription)
+	}
+
+	// Also verify with MockUsers populated (the other branch of validateUser).
+	cfgM := config.Default()
+	cfgM.MockUsers = map[string]string{"known@example.com": "secret123"}
+	hM := handlers.NewOAuthHandler(cfgM, zerolog.Nop())
+
+	recUnknownM := postForm(hM.HandleToken, "/services/oauth2/token", url.Values{
+		"grant_type":    []string{"password"},
+		"client_id":     []string{cfgM.MockClientID},
+		"client_secret": []string{cfgM.MockClientSecret},
+		"username":      []string{"nobody@unknown.example"},
+		"password":      []string{"anypassword"},
+	}, "POST")
+	recWrongPwM := postForm(hM.HandleToken, "/services/oauth2/token", url.Values{
+		"grant_type":    []string{"password"},
+		"client_id":     []string{cfgM.MockClientID},
+		"client_secret": []string{cfgM.MockClientSecret},
+		"username":      []string{"known@example.com"},
+		"password":      []string{"wrongpassword"},
+	}, "POST")
+
+	var errUnknownM, errWrongPwM models.OAuthError
+	json.NewDecoder(recUnknownM.Body).Decode(&errUnknownM)
+	json.NewDecoder(recWrongPwM.Body).Decode(&errWrongPwM)
+
+	if errUnknownM.Error != errWrongPwM.Error {
+		t.Errorf("MockUsers branch — error codes differ: unknown_user=%q wrong_pw=%q",
+			errUnknownM.Error, errWrongPwM.Error)
+	}
+	if errUnknownM.ErrorDescription != errWrongPwM.ErrorDescription {
+		t.Errorf("MockUsers branch — error descriptions differ: unknown_user=%q wrong_pw=%q",
+			errUnknownM.ErrorDescription, errWrongPwM.ErrorDescription)
 	}
 }

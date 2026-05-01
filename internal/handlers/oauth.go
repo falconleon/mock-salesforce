@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -58,9 +59,10 @@ func extractClientCredentials(r *http.Request) (id, secret string, ok bool, err 
 
 // OAuthHandler handles OAuth authentication requests.
 type OAuthHandler struct {
-	config *config.Config
-	logger zerolog.Logger
-	codes  *AuthCodeStore
+	config    *config.Config
+	logger    zerolog.Logger
+	codes     *AuthCodeStore
+	refreshMu sync.Map // per-refresh-token mutex; keyed by token string (I-2)
 }
 
 // NewOAuthHandler creates a new OAuth handler.
@@ -140,15 +142,28 @@ func (h *OAuthHandler) handleRefreshGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 	refresh := r.FormValue("refresh_token")
+
+	// Per-token mutex prevents concurrent exchanges of the same refresh token
+	// from both succeeding (double-issue window, I-2). Mutex entries are
+	// intentionally leaked on rotation/revocation — the token population in
+	// a mock server is small and bounded, so the leak is acceptable.
+	stored, _ := h.refreshMu.LoadOrStore(refresh, &sync.Mutex{})
+	mu := stored.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Re-read the token INSIDE the critical section. A concurrent exchange
+	// that already rotated this token will have called MarkRevoked, so
+	// LookupToken returns nil here and we fall through to invalid_grant.
 	info := middleware.LookupToken(refresh)
 	if info == nil || info.Type != "refresh" {
 		// RFC 6749 §10.4: replay of a rotated refresh token MUST revoke
 		// the entire family. Distinguish "never seen" from "previously
 		// rotated" via LookupTokenRaw.
-		if raw := middleware.LookupTokenRaw(refresh); raw != nil && raw.Type == "refresh" && raw.Revoked {
-			n := middleware.RevokeFamily(raw.Family)
+		if rawInfo := middleware.LookupTokenRaw(refresh); rawInfo != nil && rawInfo.Type == "refresh" && rawInfo.Revoked {
+			n := middleware.RevokeFamily(rawInfo.Family)
 			h.logger.Warn().
-				Str("family", raw.Family).
+				Str("family", rawInfo.Family).
 				Int("revoked", n).
 				Msg("OAuth refresh-token reuse detected; family revoked")
 		}
@@ -269,30 +284,30 @@ func (h *OAuthHandler) requireClientAuth(w http.ResponseWriter, r *http.Request)
 // users. Real Salesforce accepts password concatenated with a security
 // token; we accept either an exact match or a value that begins with
 // the configured password.
+//
+// Both the "unknown user" and "wrong password" paths always reach the
+// constant-time comparison below (M-2: timing oracle mitigation). For
+// unknown users expected is "" so both comparisons return false, but
+// the comparison cost is always paid.
 func (h *OAuthHandler) validateUser(username, password string) bool {
-	expected := ""
+	var expected string
+	userFound := false
 	if len(h.config.MockUsers) > 0 {
 		v, ok := h.config.MockUsers[username]
-		if !ok {
-			return false
-		}
-		expected = v
+		expected = v // empty string when user is not found
+		userFound = ok
 	} else {
-		if subtle.ConstantTimeCompare([]byte(username), []byte(h.config.MockUsername)) != 1 {
-			return false
-		}
+		userFound = subtle.ConstantTimeCompare([]byte(username), []byte(h.config.MockUsername)) == 1
 		expected = h.config.MockPassword
 	}
-	if subtle.ConstantTimeCompare([]byte(password), []byte(expected)) == 1 {
-		return true
-	}
-	if len(password) > len(expected) &&
-		subtle.ConstantTimeCompare([]byte(password[:len(expected)]), []byte(expected)) == 1 {
-		return true
-	}
-	return false
+	// Always perform constant-time password comparison regardless of whether
+	// the user was found. This prevents a timing oracle on username existence.
+	passwordMatch := subtle.ConstantTimeCompare([]byte(password), []byte(expected)) == 1
+	// Salesforce accepts password+security_token concatenation.
+	tokenMatch := len(password) > len(expected) &&
+		subtle.ConstantTimeCompare([]byte(password[:len(expected)]), []byte(expected)) == 1
+	return userFound && (passwordMatch || tokenMatch)
 }
-
 
 // issueTokens generates a fresh access token (and optional refresh
 // token) for the given user and writes the token response. When a
@@ -397,13 +412,6 @@ func newFamilyID() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
-}
-
-// TokenInfoBuilder is an internal scratch struct used by issueTokens
-// before the final middleware.TokenInfo is constructed.
-type TokenInfoBuilder struct {
-	Token, Type, Username, UserID, Refresh string
-	IssuedAt                               int64
 }
 
 // buildTokenResponse fills the common token response fields.
@@ -593,7 +601,6 @@ func (h *OAuthHandler) buildUserinfo(info *middleware.TokenInfo, username string
 		UpdatedAt:         time.Unix(info.IssuedAt, 0).UTC().Format(time.RFC3339),
 	}
 }
-
 
 // HandleIntrospect implements the RFC 7662 token introspection endpoint.
 // POST /services/oauth2/introspect — accepts Bearer or HTTP Basic
