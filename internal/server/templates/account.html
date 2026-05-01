@@ -10,7 +10,7 @@
         <h1>{{fieldStr .Account "Name"}}</h1>
     </div>
     <div class="card">
-        <h3>Customer Details</h3>
+        <h2>Customer Details</h2>
         <dl class="field-list">
             <dt>Industry</dt>
             <dd>{{fieldStr .Account "Industry"}}</dd>
@@ -27,7 +27,7 @@
 
     {{if .Contacts}}
     <div class="card">
-        <h3>Contacts ({{len .Contacts}})</h3>
+        <h2>Contacts ({{len .Contacts}})</h2>
         <table class="sf-table">
             <thead>
                 <tr><th>Name</th><th>Title</th><th>Email</th><th>Phone</th></tr>
@@ -48,7 +48,7 @@
 
     {{if .Cases}}
     <div class="card">
-        <h3>Related Cases ({{len .Cases}})</h3>
+        <h2>Related Cases ({{len .Cases}})</h2>
         <table class="sf-table">
             <thead>
                 <tr><th>Case Number</th><th>Subject</th><th>Status</th><th>Priority</th></tr>

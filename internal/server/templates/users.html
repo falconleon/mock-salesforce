@@ -13,7 +13,7 @@
 {{if .Error}}<div class="card card-danger" role="alert">{{.Error}}</div>{{end}}
 
 <div class="card">
-    <h3>Create User</h3>
+    <h2>Create User</h2>
     <form method="POST" action="{{basePath}}/settings/users" class="settings-form">
         <label>Username (email)
             <input type="text" name="username" value="{{index .Form "username"}}" required>
@@ -32,7 +32,7 @@
 </div>
 
 <div class="card">
-    <h3>All Users ({{.Total}})</h3>
+    <h2>All Users ({{.Total}})</h2>
     {{if .Users}}
     <table class="sf-table">
         <thead>

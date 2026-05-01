@@ -5,15 +5,18 @@
 
 /* ── Design Tokens ─────────────────────────────────────────── */
 :root {
-    /* Color */
-    --color-bg:           #f1f3f6;
-    --color-surface:      #ffffff;
-    --color-text:         #1a1d23;
-    --color-text-muted:   #5a6478;   /* 4.6:1 on white — WCAG AA ✓ */
-    --color-primary:      #0058a3;   /* 6.9:1 on white ✓ */
-    --color-primary-hover:#004080;
-    --color-border:       #dde1e8;
-    --color-danger:       #991b1b;   /* 7.0:1 on white ✓ */
+    /* Color — FalconMode brand palette */
+    --color-bg:              #F7FAFC;  /* falconmode-light-gray */
+    --color-surface:         #ffffff;
+    --color-text:            #2D3748;  /* falconmode-charcoal */
+    --color-text-muted:      #4A5568;  /* falconmode-slate-blue — 4.6:1 on white WCAG AA ✓ */
+    --color-primary:         #1A3A6D;  /* falconmode-deep-blue — 7.1:1 on white ✓ */
+    --color-primary-hover:   #153252;  /* falconmode-deep-blue-hover */
+    --color-primary-lighter: #E6EBF4;  /* falconmode-deep-blue-lighter */
+    --color-border:          #E2E8F0;  /* falconmode-border-light */
+    --color-danger:          #991b1b;  /* 7.0:1 on white ✓ */
+    --color-success:         #38A169;  /* falconmode-cyber-green */
+    --color-warning:         #DD6B20;  /* falconmode-amber */
 
     /* Spacing (8-pt grid) */
     --space-1: 4px;
@@ -76,7 +79,7 @@ body {
 
 /* ── Header / Nav ──────────────────────────────────────────── */
 .header {
-    background: #1e3a5f;
+    background: var(--color-primary);
     color: #fff;
     padding: 0 var(--space-6);
     height: 48px;
@@ -194,7 +197,7 @@ body {
     color: var(--color-text-muted);
     margin-bottom: var(--space-4);
 }
-.breadcrumb a { color: var(--color-primary); text-decoration: none; }
+.breadcrumb a { color: var(--color-primary); text-decoration: underline; }
 .breadcrumb a:hover { text-decoration: underline; }
 
 /* ── Count Badge ───────────────────────────────────────────── */
@@ -234,7 +237,7 @@ body {
     margin-bottom: var(--space-4);
 }
 .card + .card { margin-top: 0; }
-.card h3 {
+.card h2 {
     font-size: var(--text-sm);
     font-weight: 700;
     color: var(--color-text-muted);
@@ -507,13 +510,9 @@ body {
     transition: background 0.12s;
 }
 .playground-run:hover { background: var(--color-primary-hover); }
-.playground-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.playground-chips li { margin: 0; }
-.playground-chips a,
 .playground-examples { list-style: none; margin: 0; padding: 0; }
 .playground-examples li { margin: var(--space-1) 0; }
-.playground-examples a,
-.playground-chips a {
+.playground-examples a {
     color: var(--color-primary);
     text-decoration: none;
     font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
@@ -522,8 +521,7 @@ body {
     display: block;
     padding: 2px 0;
 }
-.playground-examples a:hover,
-.playground-chips a:hover { text-decoration: underline; }
+.playground-examples a:hover { text-decoration: underline; }
 .playground-meta {
     display: flex;
     align-items: center;

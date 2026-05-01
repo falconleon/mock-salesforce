@@ -16,7 +16,7 @@
 
 {{if .NewToken.Token}}
 <div class="card card-success" role="alert" aria-live="polite">
-    <h3>Token Minted — Copy Now</h3>
+    <h2>Token Minted — Copy Now</h2>
     <p>This is the only time the plaintext token will be shown. Copy it before leaving this page.</p>
     <pre><code>{{.NewToken.Token}}</code></pre>
     <dl class="field-list">
@@ -29,7 +29,7 @@
 {{end}}
 
 <div class="card">
-    <h3>Edit User</h3>
+    <h2>Edit User</h2>
     <form method="POST" action="{{basePath}}/settings/users/{{.User.ID}}" class="settings-form">
         <label>Username (email)
             <input type="text" name="username" value="{{.User.Username}}" required>
@@ -48,7 +48,7 @@
 </div>
 
 <div class="card">
-    <h3>API Tokens ({{len .Tokens}})</h3>
+    <h2>API Tokens ({{len .Tokens}})</h2>
     <form method="POST" action="{{basePath}}/settings/users/{{.User.ID}}/tokens" class="settings-form">
         <label>Label
             <input type="text" name="label" placeholder="ci-runner">
@@ -84,7 +84,7 @@
 </div>
 
 <div class="card card-danger">
-    <h3>Danger Zone</h3>
+    <h2>Danger Zone</h2>
     <p>Deleting this user revokes all of their tokens immediately.</p>
     <form method="POST" action="{{basePath}}/settings/users/{{.User.ID}}" onsubmit="return confirm('Delete user {{.User.Username}}? This cannot be undone.');">
         <input type="hidden" name="_action" value="delete">

@@ -1,7 +1,9 @@
-# UI After-State Screenshots
+# UI After-State Screenshots (v2 — FalconMode Brand Palette)
 
 Captured at 1280×800 viewport using Playwright against the mock server on port 9090.
 Credentials: `demo@falcon.local` / `demo123`.
+
+**v2 changes applied (UI-5):** FalconMode brand palette retune (deep-blue primary `#1A3A6D`, slate-blue muted, charcoal text, light-gray bg), breadcrumb link underline (WCAG 1.4.1), heading order h3→h2 (WCAG 1.3.1), removed dead `.playground-chips` CSS rules.
 
 | filename | URL | description |
 |---|---|---|
