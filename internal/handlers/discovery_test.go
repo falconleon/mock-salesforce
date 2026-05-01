@@ -82,7 +82,7 @@ func TestDiscoveryHandler_Shape(t *testing.T) {
 	expectArr("response_types_supported", []string{"code"})
 	expectArr("grant_types_supported", []string{"authorization_code", "password", "refresh_token", "client_credentials"})
 	expectArr("token_endpoint_auth_methods_supported", []string{"client_secret_basic", "client_secret_post"})
-	expectArr("code_challenge_methods_supported", []string{"S256", "plain"})
+	expectArr("code_challenge_methods_supported", []string{"S256"})
 	expectArr("scopes_supported", []string{"api", "refresh_token", "openid", "id", "profile", "email"})
 	expectArr("subject_types_supported", []string{"public"})
 }

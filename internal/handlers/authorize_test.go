@@ -147,6 +147,21 @@ func TestAuthorize_Get_BadChallengeMethod_RedirectsWithError(t *testing.T) {
 	}
 }
 
+// Salesforce mandates S256-only PKCE effective 2026-05-11; a plain
+// code_challenge_method must be rejected as invalid_request.
+func TestAuthorize_RejectsPlainPKCE(t *testing.T) {
+	h, _, cfg := newAuthorizeHarness(t)
+	req := httptest.NewRequest(http.MethodGet, authorizeURL(cfg, url.Values{"code_challenge_method": {"plain"}}), nil)
+	rec := httptest.NewRecorder()
+	h.HandleGet(rec, req)
+	if rec.Code != http.StatusFound {
+		t.Fatalf("expected 302 redirect with error, got %d", rec.Code)
+	}
+	if errCode := errFromLocation(t, rec.Header().Get("Location")); errCode != "invalid_request" {
+		t.Errorf("expected error=invalid_request for plain PKCE method, got %q", errCode)
+	}
+}
+
 func TestAuthorize_Get_Authenticated_RendersConsent(t *testing.T) {
 	h, _, cfg := newAuthorizeHarness(t)
 	req := httptest.NewRequest(http.MethodGet, authorizeURL(cfg, nil), nil)

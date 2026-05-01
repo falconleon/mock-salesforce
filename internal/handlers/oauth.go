@@ -208,21 +208,18 @@ func (h *OAuthHandler) handleAuthorizationCodeGrant(w http.ResponseWriter, r *ht
 }
 
 // verifyPKCE checks the code_verifier against the stored challenge per
-// RFC 7636 §4.6. Returns false on any mismatch or unsupported method.
+// RFC 7636 §4.6. S256 is the only method accepted (Salesforce mandate
+// effective 2026-05-11); any other method is rejected.
 func verifyPKCE(verifier, challenge, method string) bool {
 	if verifier == "" || challenge == "" {
 		return false
 	}
-	switch method {
-	case "S256":
-		sum := sha256.Sum256([]byte(verifier))
-		computed := base64.RawURLEncoding.EncodeToString(sum[:])
-		return subtle.ConstantTimeCompare([]byte(computed), []byte(challenge)) == 1
-	case "plain":
-		return subtle.ConstantTimeCompare([]byte(verifier), []byte(challenge)) == 1
-	default:
+	if method != "S256" {
 		return false
 	}
+	sum := sha256.Sum256([]byte(verifier))
+	computed := base64.RawURLEncoding.EncodeToString(sum[:])
+	return subtle.ConstantTimeCompare([]byte(computed), []byte(challenge)) == 1
 }
 
 func (h *OAuthHandler) handleClientCredentialsGrant(w http.ResponseWriter, clientID, clientSecret string) {

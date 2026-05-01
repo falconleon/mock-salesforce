@@ -855,7 +855,10 @@ func TestOAuthHandler_AuthorizationCodeGrant_S256_Success(t *testing.T) {
 	}
 }
 
-func TestOAuthHandler_AuthorizationCodeGrant_Plain_Success(t *testing.T) {
+// Defence in depth: even if a code somehow has a non-S256 method
+// stored (the /authorize handler rejects it up front per the Salesforce
+// 2026-05-11 mandate), the token endpoint MUST refuse the exchange.
+func TestOAuthHandler_AuthorizationCodeGrant_Plain_Rejected(t *testing.T) {
 	h, _, ac, verifier := authCodeHarness(t, "plain")
 	cfg := config.Default()
 
@@ -868,8 +871,13 @@ func TestOAuthHandler_AuthorizationCodeGrant_Plain_Success(t *testing.T) {
 	form.Set("code_verifier", verifier)
 
 	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("plain PKCE: expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("plain PKCE: expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp models.OAuthError
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error != "invalid_grant" {
+		t.Errorf("expected error=invalid_grant, got %q", resp.Error)
 	}
 }
 

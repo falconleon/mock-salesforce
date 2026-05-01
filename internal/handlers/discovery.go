@@ -42,7 +42,7 @@ func (h *DiscoveryHandler) HandleDiscovery(w http.ResponseWriter, r *http.Reques
 		"response_types_supported":              []string{"code"},
 		"grant_types_supported":                 []string{"authorization_code", "password", "refresh_token", "client_credentials"},
 		"token_endpoint_auth_methods_supported": []string{"client_secret_basic", "client_secret_post"},
-		"code_challenge_methods_supported":      []string{"S256", "plain"},
+		"code_challenge_methods_supported":      []string{"S256"},
 		"scopes_supported":                      []string{"api", "refresh_token", "openid", "id", "profile", "email"},
 		"subject_types_supported":               []string{"public"},
 	}

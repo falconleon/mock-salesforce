@@ -175,8 +175,8 @@ func (h *AuthorizeHandler) validateRest(p authorizeParams) (string, string, bool
 	if p.codeChallengeMethod == "" {
 		return "invalid_request", "code_challenge_method is required", false
 	}
-	if p.codeChallengeMethod != "S256" && p.codeChallengeMethod != "plain" {
-		return "invalid_request", "code_challenge_method must be S256 or plain", false
+	if p.codeChallengeMethod != "S256" {
+		return "invalid_request", "code_challenge_method must be S256", false
 	}
 	return "", "", true
 }
