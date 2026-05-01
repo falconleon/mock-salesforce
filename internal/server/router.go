@@ -74,6 +74,7 @@ func (s *Server) setupRoutes() http.Handler {
 	})
 
 	// Login form
+	loginLogger := s.logger.With().Str("handler", "login").Logger()
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		falconReturn := middleware.ExtractFalconReturn(r)
 		if falconReturn != "" {
@@ -90,12 +91,14 @@ func (s *Server) setupRoutes() http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = loginTpl.ExecuteTemplate(w, "login", map[string]any{
+		if err := loginTpl.ExecuteTemplate(w, "login", map[string]any{
 			"BasePath":     basePath,
 			"Error":        r.URL.Query().Get("error") != "",
 			"FalconReturn": falconReturn,
 			"Next":         r.URL.Query().Get("next"),
-		})
+		}); err != nil {
+			loginLogger.Error().Err(err).Str("template", "login").Str("path", r.URL.Path).Msg("template execution failed")
+		}
 	})
 
 	// Login + logout endpoints for UI session auth.
@@ -118,7 +121,8 @@ func (s *Server) setupRoutes() http.Handler {
 		// session-cookie auth path (gated by the global Auth middleware)
 		// so admins can manage users without juggling X-Admin-Token in a
 		// browser.
-		settingsUsers := NewSettingsUsersHandler(s.userStore, basePath, s.config.SessionSecret)
+		settingsUsers := NewSettingsUsersHandler(s.userStore, basePath, s.config.SessionSecret).
+			WithLogger(s.logger.With().Str("handler", "settings_users").Logger())
 		mux.HandleFunc("/settings/users", settingsUsers.HandleList)
 		mux.HandleFunc("/settings/users/{id}", settingsUsers.HandleDetail)
 		mux.HandleFunc("/settings/users/{id}/tokens", settingsUsers.HandleTokens)
@@ -128,7 +132,8 @@ func (s *Server) setupRoutes() http.Handler {
 	// Settings / Profile page exposing the OAuth client credentials with
 	// an eyeball toggle for the secret. The hidden/shown partials are
 	// served as separate routes so HTMX can swap between them.
-	settings := NewSettingsHandler(s.config.MockClientID, s.config.MockClientSecret, basePath, s.config.SessionSecret)
+	settings := NewSettingsHandler(s.config.MockClientID, s.config.MockClientSecret, basePath, s.config.SessionSecret).
+		WithLogger(s.logger.With().Str("handler", "settings").Logger())
 	mux.HandleFunc("GET /settings", settings.HandlePage)
 	mux.HandleFunc("GET /settings/secret/shown", settings.HandleSecretShown)
 	mux.HandleFunc("GET /settings/secret/hidden", settings.HandleSecretHidden)
@@ -154,7 +159,8 @@ func (s *Server) setupRoutes() http.Handler {
 	})
 
 	// UI routes — Salesforce Lightning URL patterns
-	ui := NewUIHandler(s.store, basePath, s.config.SessionSecret)
+	ui := NewUIHandler(s.store, basePath, s.config.SessionSecret).
+		WithLogger(s.logger.With().Str("handler", "ui").Logger())
 	mux.HandleFunc("GET /home", ui.Home)
 	mux.HandleFunc("GET /lightning/o/Case/list", ui.CaseList)
 	mux.HandleFunc("GET /lightning/r/Case/{id}/view", ui.CaseDetail)
@@ -169,7 +175,8 @@ func (s *Server) setupRoutes() http.Handler {
 	mux.HandleFunc("GET /lightning/r/User/{id}/view", ui.UserDetail)
 
 	// SOQL playground UI — exercises the same executor used by the REST query API.
-	playground := NewPlaygroundHandler(s.store, basePath, s.config.SessionSecret)
+	playground := NewPlaygroundHandler(s.store, basePath, s.config.SessionSecret).
+		WithLogger(s.logger.With().Str("handler", "playground").Logger())
 	mux.HandleFunc("GET /playground", playground.Page)
 	mux.HandleFunc("POST /playground/run", playground.Run)
 

@@ -4,6 +4,8 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/rs/zerolog"
+
 	"github.com/falconleon/mock-salesforce/internal/server/middleware"
 )
 
@@ -19,6 +21,7 @@ type SettingsHandler struct {
 	sessionSecret string
 	pageTpl       *template.Template
 	partialTpl    *template.Template
+	logger        zerolog.Logger
 }
 
 // NewSettingsHandler builds the handler with parsed templates. The
@@ -43,7 +46,14 @@ func NewSettingsHandler(clientID, clientSecret, basePath, sessionSecret string) 
 		sessionSecret: sessionSecret,
 		pageTpl:       pageTpl,
 		partialTpl:    partialTpl,
+		logger:        zerolog.Nop(),
 	}
+}
+
+// WithLogger attaches a logger used to record template execution failures.
+func (h *SettingsHandler) WithLogger(logger zerolog.Logger) *SettingsHandler {
+	h.logger = logger
+	return h
 }
 
 // currentUser returns the authenticated email from the session cookie,
@@ -60,30 +70,36 @@ func (h *SettingsHandler) currentUser(r *http.Request) string {
 // initially hidden.
 func (h *SettingsHandler) HandlePage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = h.pageTpl.ExecuteTemplate(w, "settings.html", map[string]any{
+	if err := h.pageTpl.ExecuteTemplate(w, "settings.html", map[string]any{
 		"Title":        "Settings",
 		"BasePath":     h.basePath,
 		"CurrentUser":  h.currentUser(r),
 		"ClientID":     h.clientID,
 		"ClientSecret": h.clientSecret,
-	})
+	}); err != nil {
+		h.logger.Error().Err(err).Str("template", "settings.html").Str("path", r.URL.Path).Msg("template execution failed")
+	}
 }
 
 // HandleSecretShown returns the partial that reveals the client secret
 // in plaintext, with an eye-slash toggle that switches back to hidden.
 func (h *SettingsHandler) HandleSecretShown(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = h.partialTpl.ExecuteTemplate(w, "settings_secret_shown", map[string]any{
+	if err := h.partialTpl.ExecuteTemplate(w, "settings_secret_shown", map[string]any{
 		"BasePath":     h.basePath,
 		"ClientSecret": h.clientSecret,
-	})
+	}); err != nil {
+		h.logger.Error().Err(err).Str("template", "settings_secret_shown").Str("path", r.URL.Path).Msg("template execution failed")
+	}
 }
 
 // HandleSecretHidden returns the partial that masks the client secret,
 // with an eye toggle that switches back to shown.
 func (h *SettingsHandler) HandleSecretHidden(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = h.partialTpl.ExecuteTemplate(w, "settings_secret_hidden", map[string]any{
+	if err := h.partialTpl.ExecuteTemplate(w, "settings_secret_hidden", map[string]any{
 		"BasePath": h.basePath,
-	})
+	}); err != nil {
+		h.logger.Error().Err(err).Str("template", "settings_secret_hidden").Str("path", r.URL.Path).Msg("template execution failed")
+	}
 }

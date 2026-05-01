@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"sort"
 
+	"github.com/rs/zerolog"
+
 	"github.com/falconleon/mock-salesforce/internal/server/middleware"
 	"github.com/falconleon/mock-salesforce/internal/store"
 )
@@ -46,6 +48,7 @@ type UIHandler struct {
 	contactTpl     *template.Template
 	userTpl        *template.Template
 	casePartialTpl *template.Template
+	logger         zerolog.Logger
 }
 
 // NewUIHandler creates a UIHandler with parsed templates and template functions.
@@ -164,7 +167,22 @@ func NewUIHandler(s store.Store, basePath string, sessionSecret string) *UIHandl
 		contactTpl:     contactTpl,
 		userTpl:        userTpl,
 		casePartialTpl: casePartialTpl,
+		logger:         zerolog.Nop(),
 	}
+}
+
+// WithLogger attaches a logger used to record template execution failures.
+func (h *UIHandler) WithLogger(logger zerolog.Logger) *UIHandler {
+	h.logger = logger
+	return h
+}
+
+// logTemplateErr emits a structured error log for a failed template render.
+func (h *UIHandler) logTemplateErr(err error, name, path string) {
+	if err == nil {
+		return
+	}
+	h.logger.Error().Err(err).Str("template", name).Str("path", path).Msg("template execution failed")
 }
 
 // currentUser returns the authenticated user's email from the session
@@ -216,13 +234,14 @@ func (h *UIHandler) CaseList(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	h.caseListTpl.ExecuteTemplate(w, "case_list.html", map[string]any{
+	err := h.caseListTpl.ExecuteTemplate(w, "case_list.html", map[string]any{
 		"Cases":       cases,
 		"Title":       "Salesforce — Cases",
 		"Total":       len(cases),
 		"BasePath":    h.basePath,
 		"CurrentUser": h.currentUser(r),
 	})
+	h.logTemplateErr(err, "case_list.html", r.URL.Path)
 }
 
 // resolveCase looks up a case by Id, falling back to CaseNumber.
@@ -368,20 +387,28 @@ func (h *UIHandler) CaseDetail(w http.ResponseWriter, r *http.Request) {
 
 	activeTab := resolveCaseTab(r.URL.Query().Get("tab"))
 	var tabBuf bytes.Buffer
+	var tabErr error
+	var tabName string
 	switch activeTab {
 	case "comments":
-		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_comments", map[string]any{"Comments": comments})
+		tabName = "case_comments"
+		tabErr = h.casePartialTpl.ExecuteTemplate(&tabBuf, tabName, map[string]any{"Comments": comments})
 	case "feed":
-		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_feed", map[string]any{"FeedItems": feedItems})
+		tabName = "case_feed"
+		tabErr = h.casePartialTpl.ExecuteTemplate(&tabBuf, tabName, map[string]any{"FeedItems": feedItems})
 	case "activities":
-		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_activities", map[string]any{"Tasks": tasks, "Events": events})
+		tabName = "case_activities"
+		tabErr = h.casePartialTpl.ExecuteTemplate(&tabBuf, tabName, map[string]any{"Tasks": tasks, "Events": events})
 	case "files":
-		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_files", map[string]any{"Files": files})
+		tabName = "case_files"
+		tabErr = h.casePartialTpl.ExecuteTemplate(&tabBuf, tabName, map[string]any{"Files": files})
 	default:
-		_ = h.casePartialTpl.ExecuteTemplate(&tabBuf, "case_emails", map[string]any{"Emails": emails})
+		tabName = "case_emails"
+		tabErr = h.casePartialTpl.ExecuteTemplate(&tabBuf, tabName, map[string]any{"Emails": emails})
 	}
+	h.logTemplateErr(tabErr, tabName, r.URL.Path)
 
-	h.caseTpl.ExecuteTemplate(w, "case.html", map[string]any{
+	pageErr := h.caseTpl.ExecuteTemplate(w, "case.html", map[string]any{
 		"Case":            caseRec,
 		"Emails":          emails,
 		"Comments":        comments,
@@ -395,6 +422,7 @@ func (h *UIHandler) CaseDetail(w http.ResponseWriter, r *http.Request) {
 		"Title":           caseRec["CaseNumber"],
 		"BasePath":        h.basePath,
 	})
+	h.logTemplateErr(pageErr, "case.html", r.URL.Path)
 }
 
 // CaseEmailsPartial renders the Emails tab body for HTMX swaps.
@@ -406,9 +434,10 @@ func (h *UIHandler) CaseEmailsPartial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	caseID, _ := caseRec["Id"].(string)
-	h.casePartialTpl.ExecuteTemplate(w, "case_emails", map[string]any{
+	tplErr := h.casePartialTpl.ExecuteTemplate(w, "case_emails", map[string]any{
 		"Emails": h.caseEmails(caseID),
 	})
+	h.logTemplateErr(tplErr, "case_emails", r.URL.Path)
 }
 
 // CaseCommentsPartial renders the Comments tab body for HTMX swaps.
@@ -420,9 +449,10 @@ func (h *UIHandler) CaseCommentsPartial(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	caseID, _ := caseRec["Id"].(string)
-	h.casePartialTpl.ExecuteTemplate(w, "case_comments", map[string]any{
+	tplErr := h.casePartialTpl.ExecuteTemplate(w, "case_comments", map[string]any{
 		"Comments": h.caseComments(caseID),
 	})
+	h.logTemplateErr(tplErr, "case_comments", r.URL.Path)
 }
 
 // CaseFeedPartial renders the Feed tab body for HTMX swaps.
@@ -434,9 +464,10 @@ func (h *UIHandler) CaseFeedPartial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	caseID, _ := caseRec["Id"].(string)
-	h.casePartialTpl.ExecuteTemplate(w, "case_feed", map[string]any{
+	tplErr := h.casePartialTpl.ExecuteTemplate(w, "case_feed", map[string]any{
 		"FeedItems": h.caseFeedItems(caseID),
 	})
+	h.logTemplateErr(tplErr, "case_feed", r.URL.Path)
 }
 
 // CaseActivitiesPartial renders the Activities tab body for HTMX swaps.
@@ -448,10 +479,11 @@ func (h *UIHandler) CaseActivitiesPartial(w http.ResponseWriter, r *http.Request
 		return
 	}
 	caseID, _ := caseRec["Id"].(string)
-	h.casePartialTpl.ExecuteTemplate(w, "case_activities", map[string]any{
+	tplErr := h.casePartialTpl.ExecuteTemplate(w, "case_activities", map[string]any{
 		"Tasks":  h.caseTasks(caseID),
 		"Events": h.caseEvents(caseID),
 	})
+	h.logTemplateErr(tplErr, "case_activities", r.URL.Path)
 }
 
 // CaseFilesPartial renders the Files tab body for HTMX swaps.
@@ -463,9 +495,10 @@ func (h *UIHandler) CaseFilesPartial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	caseID, _ := caseRec["Id"].(string)
-	h.casePartialTpl.ExecuteTemplate(w, "case_files", map[string]any{
+	tplErr := h.casePartialTpl.ExecuteTemplate(w, "case_files", map[string]any{
 		"Files": h.caseFiles(caseID),
 	})
+	h.logTemplateErr(tplErr, "case_files", r.URL.Path)
 }
 
 // AccountList renders the accounts list page.
@@ -476,13 +509,14 @@ func (h *UIHandler) AccountList(w http.ResponseWriter, r *http.Request) {
 		return fmt.Sprint(accounts[i]["Name"]) < fmt.Sprint(accounts[j]["Name"])
 	})
 
-	h.accountListTpl.ExecuteTemplate(w, "account_list.html", map[string]any{
+	err := h.accountListTpl.ExecuteTemplate(w, "account_list.html", map[string]any{
 		"Accounts":    accounts,
 		"Title":       "Salesforce — Accounts",
 		"Total":       len(accounts),
 		"BasePath":    h.basePath,
 		"CurrentUser": h.currentUser(r),
 	})
+	h.logTemplateErr(err, "account_list.html", r.URL.Path)
 }
 
 // AccountDetail renders the account detail page with related cases and contacts.
@@ -508,7 +542,7 @@ func (h *UIHandler) AccountDetail(w http.ResponseWriter, r *http.Request) {
 		return fmt.Sprint(contacts[i]["Name"]) < fmt.Sprint(contacts[j]["Name"])
 	})
 
-	h.accountTpl.ExecuteTemplate(w, "account.html", map[string]any{
+	tplErr := h.accountTpl.ExecuteTemplate(w, "account.html", map[string]any{
 		"Account":     account,
 		"Cases":       cases,
 		"Contacts":    contacts,
@@ -516,6 +550,7 @@ func (h *UIHandler) AccountDetail(w http.ResponseWriter, r *http.Request) {
 		"BasePath":    h.basePath,
 		"CurrentUser": h.currentUser(r),
 	})
+	h.logTemplateErr(tplErr, "account.html", r.URL.Path)
 }
 
 // Home renders the customer (Account) list as the application home page.
@@ -546,13 +581,14 @@ func (h *UIHandler) Home(w http.ResponseWriter, r *http.Request) {
 		acc["_OpenCases"] = open
 	}
 
-	h.homeTpl.ExecuteTemplate(w, "home.html", map[string]any{
+	err := h.homeTpl.ExecuteTemplate(w, "home.html", map[string]any{
 		"Accounts":    accounts,
 		"Title":       "Home — Customers",
 		"Total":       len(accounts),
 		"BasePath":    h.basePath,
 		"CurrentUser": h.currentUser(r),
 	})
+	h.logTemplateErr(err, "home.html", r.URL.Path)
 }
 
 // ContactDetail renders the contact detail page with the related account.
@@ -583,13 +619,14 @@ func (h *UIHandler) ContactDetail(w http.ResponseWriter, r *http.Request) {
 		name = first + " " + last
 	}
 
-	h.contactTpl.ExecuteTemplate(w, "contact.html", map[string]any{
+	tplErr := h.contactTpl.ExecuteTemplate(w, "contact.html", map[string]any{
 		"Contact":     contact,
 		"Cases":       cases,
 		"Title":       name,
 		"BasePath":    h.basePath,
 		"CurrentUser": h.currentUser(r),
 	})
+	h.logTemplateErr(tplErr, "contact.html", r.URL.Path)
 }
 
 // UserDetail renders the user detail page (internal users — owners/agents).
@@ -613,11 +650,12 @@ func (h *UIHandler) UserDetail(w http.ResponseWriter, r *http.Request) {
 		name = first + " " + last
 	}
 
-	h.userTpl.ExecuteTemplate(w, "user.html", map[string]any{
+	tplErr := h.userTpl.ExecuteTemplate(w, "user.html", map[string]any{
 		"User":        user,
 		"OwnedCases":  ownedCases,
 		"Title":       name,
 		"BasePath":    h.basePath,
 		"CurrentUser": h.currentUser(r),
 	})
+	h.logTemplateErr(tplErr, "user.html", r.URL.Path)
 }

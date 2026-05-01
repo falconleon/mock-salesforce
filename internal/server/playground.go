@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rs/zerolog"
+
 	"github.com/falconleon/mock-salesforce/internal/server/middleware"
 	"github.com/falconleon/mock-salesforce/internal/soql"
 	"github.com/falconleon/mock-salesforce/internal/store"
@@ -31,9 +33,11 @@ type PlaygroundHandler struct {
 	sessionSecret string
 	pageTpl       *template.Template
 	resultsTpl    *template.Template
+	logger        zerolog.Logger
 }
 
 // NewPlaygroundHandler constructs a PlaygroundHandler with parsed templates.
+// The handler logs to a no-op logger by default; use WithLogger to attach one.
 func NewPlaygroundHandler(s store.Store, basePath, sessionSecret string) *PlaygroundHandler {
 	funcs := template.FuncMap{
 		"basePath": func() string { return basePath },
@@ -46,7 +50,14 @@ func NewPlaygroundHandler(s store.Store, basePath, sessionSecret string) *Playgr
 		sessionSecret: sessionSecret,
 		pageTpl:       pageTpl,
 		resultsTpl:    resultsTpl,
+		logger:        zerolog.Nop(),
 	}
+}
+
+// WithLogger attaches a logger used to record template execution failures.
+func (h *PlaygroundHandler) WithLogger(logger zerolog.Logger) *PlaygroundHandler {
+	h.logger = logger
+	return h
 }
 
 // Page renders the SOQL playground page shell (form + examples + empty results).
@@ -111,11 +122,15 @@ func isHTMXRequest(r *http.Request) bool {
 func (h *PlaygroundHandler) renderResults(w http.ResponseWriter, r *http.Request, q string, data map[string]any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if isHTMXRequest(r) {
-		_ = h.resultsTpl.ExecuteTemplate(w, "playground_results", data)
+		if err := h.resultsTpl.ExecuteTemplate(w, "playground_results", data); err != nil {
+			h.logger.Error().Err(err).Str("template", "playground_results").Str("path", r.URL.Path).Msg("template execution failed")
+		}
 		return
 	}
 	var buf bytes.Buffer
-	_ = h.resultsTpl.ExecuteTemplate(&buf, "playground_results", data)
+	if err := h.resultsTpl.ExecuteTemplate(&buf, "playground_results", data); err != nil {
+		h.logger.Error().Err(err).Str("template", "playground_results").Str("path", r.URL.Path).Msg("template execution failed")
+	}
 	h.renderPage(w, r, q, template.HTML(buf.String()))
 }
 
@@ -128,14 +143,16 @@ func (h *PlaygroundHandler) renderPage(w http.ResponseWriter, r *http.Request, q
 			currentUser = email
 		}
 	}
-	_ = h.pageTpl.ExecuteTemplate(w, "playground.html", map[string]any{
+	if err := h.pageTpl.ExecuteTemplate(w, "playground.html", map[string]any{
 		"Title":       "SOQL Playground",
 		"BasePath":    h.basePath,
 		"CurrentUser": currentUser,
 		"Query":       q,
 		"Examples":    playgroundExamples,
 		"Results":     results,
-	})
+	}); err != nil {
+		h.logger.Error().Err(err).Str("template", "playground.html").Str("path", r.URL.Path).Msg("template execution failed")
+	}
 }
 
 // projectPlaygroundRows derives header labels and stringified row cells from

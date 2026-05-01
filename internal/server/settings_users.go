@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/rs/zerolog"
+
 	"github.com/falconleon/mock-salesforce/internal/server/middleware"
 	"github.com/falconleon/mock-salesforce/internal/users"
 )
@@ -30,6 +32,7 @@ type SettingsUsersHandler struct {
 	sessionSecret string
 	listTpl       *template.Template
 	detailTpl     *template.Template
+	logger        zerolog.Logger
 }
 
 // NewSettingsUsersHandler builds the handler with parsed templates.
@@ -53,7 +56,14 @@ func NewSettingsUsersHandler(s users.Store, basePath, sessionSecret string) *Set
 		sessionSecret: sessionSecret,
 		listTpl:       listTpl,
 		detailTpl:     detailTpl,
+		logger:        zerolog.Nop(),
 	}
+}
+
+// WithLogger attaches a logger used to record template execution failures.
+func (h *SettingsUsersHandler) WithLogger(logger zerolog.Logger) *SettingsUsersHandler {
+	h.logger = logger
+	return h
 }
 
 // currentUser extracts the authenticated user's email from the session
@@ -134,7 +144,7 @@ func (h *SettingsUsersHandler) renderList(w http.ResponseWriter, r *http.Request
 	if form == nil {
 		form = map[string]string{}
 	}
-	_ = h.listTpl.ExecuteTemplate(w, "users.html", map[string]any{
+	if err := h.listTpl.ExecuteTemplate(w, "users.html", map[string]any{
 		"Title":       "Settings — Users",
 		"BasePath":    h.basePath,
 		"CurrentUser": h.currentUser(r),
@@ -142,7 +152,9 @@ func (h *SettingsUsersHandler) renderList(w http.ResponseWriter, r *http.Request
 		"Total":       len(all),
 		"Error":       errMsg,
 		"Form":        form,
-	})
+	}); err != nil {
+		h.logger.Error().Err(err).Str("template", "users.html").Str("path", r.URL.Path).Msg("template execution failed")
+	}
 }
 
 func (h *SettingsUsersHandler) renderDetail(w http.ResponseWriter, r *http.Request, id, errMsg string, newTok users.Token) {
@@ -152,7 +164,7 @@ func (h *SettingsUsersHandler) renderDetail(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	toks, _ := h.store.ListTokens(id)
-	_ = h.detailTpl.ExecuteTemplate(w, "user_detail.html", map[string]any{
+	if err := h.detailTpl.ExecuteTemplate(w, "user_detail.html", map[string]any{
 		"Title":       "Settings — " + u.Username,
 		"BasePath":    h.basePath,
 		"CurrentUser": h.currentUser(r),
@@ -160,7 +172,9 @@ func (h *SettingsUsersHandler) renderDetail(w http.ResponseWriter, r *http.Reque
 		"Tokens":      toks,
 		"NewToken":    newTok,
 		"Error":       errMsg,
-	})
+	}); err != nil {
+		h.logger.Error().Err(err).Str("template", "user_detail.html").Str("path", r.URL.Path).Msg("template execution failed")
+	}
 }
 
 func (h *SettingsUsersHandler) createUser(w http.ResponseWriter, r *http.Request) {
