@@ -17,6 +17,7 @@ A self-contained Salesforce REST API mock server for development, testing, and d
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/services/oauth2/token` | OAuth2 token (username-password grant) |
+| `GET` | `/.well-known/openid-configuration` | OAuth/OIDC discovery document |
 | `GET` | `/services/data/{version}/query` | SOQL query (`?q=SELECT ...`) |
 | `GET` | `/services/data/{version}/sobjects/{type}/{id}` | Fetch a record |
 | `GET` | `/services/data/{version}/sobjects/{type}/describe` | Object metadata |
