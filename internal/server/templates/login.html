@@ -30,6 +30,7 @@
             <h1>Sign In</h1>
             {{if .Error}}<p class="login-error">Invalid email or password.</p>{{end}}
             {{if .FalconReturn}}<input type="hidden" name="falcon_return" value="{{.FalconReturn}}">{{end}}
+            {{if .Next}}<input type="hidden" name="next" value="{{.Next}}">{{end}}
             <input type="email" name="email" placeholder="Email" required autofocus>
             <input type="password" name="password" placeholder="Password" required>
             <button type="submit">Log In</button>

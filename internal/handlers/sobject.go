@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"github.com/falconleon/mock-salesforce/internal/schema"
 	"github.com/falconleon/mock-salesforce/internal/store"
 	"github.com/falconleon/mock-salesforce/pkg/models"
 )
@@ -580,6 +581,353 @@ func (h *SObjectHandler) getObjectMetadata(objectType string) map[string]any {
 				},
 			},
 		},
+		"FeedComment": {
+			label:       "Feed Comment",
+			labelPlural: "Feed Comments",
+			keyPrefix:   "0D7",
+			customFields: []map[string]any{
+				{
+					"name":        "FeedItemId",
+					"label":       "Feed Item ID",
+					"type":        "reference",
+					"referenceTo": []string{"FeedItem"},
+					"nillable":    false,
+					"updateable":  false,
+					"createable":  true,
+					"filterable":  true,
+					"sortable":    true,
+				},
+				{
+					"name":        "ParentId",
+					"label":       "Parent ID",
+					"type":        "reference",
+					"referenceTo": []string{"Case", "Account", "Contact", "User"},
+					"nillable":    true,
+					"updateable":  false,
+					"createable":  true,
+					"filterable":  true,
+					"sortable":    true,
+				},
+				{
+					"name":       "CommentBody",
+					"label":      "Comment Body",
+					"type":       "textarea",
+					"length":     5000,
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": false,
+					"sortable":   false,
+				},
+				{
+					"name":        "CreatedById",
+					"label":       "Created By ID",
+					"type":        "reference",
+					"referenceTo": []string{"User"},
+					"nillable":    false,
+					"updateable":  false,
+					"createable":  false,
+					"filterable":  true,
+					"sortable":    true,
+				},
+			},
+		},
+		"Task": {
+			label:       "Task",
+			labelPlural: "Tasks",
+			keyPrefix:   "00T",
+			customFields: []map[string]any{
+				{
+					"name":        "WhoId",
+					"label":       "Name ID",
+					"type":        "reference",
+					"referenceTo": []string{"Contact", "Lead"},
+					"nillable":    true,
+					"updateable":  true,
+					"createable":  true,
+					"filterable":  true,
+					"sortable":    true,
+				},
+				{
+					"name":        "WhatId",
+					"label":       "Related To ID",
+					"type":        "reference",
+					"referenceTo": []string{"Account", "Case", "Opportunity"},
+					"nillable":    true,
+					"updateable":  true,
+					"createable":  true,
+					"filterable":  true,
+					"sortable":    true,
+				},
+				{
+					"name":       "Subject",
+					"label":      "Subject",
+					"type":       "string",
+					"length":     255,
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "ActivityDate",
+					"label":      "Due Date",
+					"type":       "date",
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "Status",
+					"label":      "Status",
+					"type":       "picklist",
+					"nillable":   false,
+					"updateable": true,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "Priority",
+					"label":      "Priority",
+					"type":       "picklist",
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":        "OwnerId",
+					"label":       "Owner ID",
+					"type":        "reference",
+					"referenceTo": []string{"User", "Group"},
+					"nillable":    false,
+					"updateable":  true,
+					"createable":  true,
+					"filterable":  true,
+					"sortable":    true,
+				},
+				{
+					"name":       "Description",
+					"label":      "Description",
+					"type":       "textarea",
+					"length":     32000,
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": false,
+					"sortable":   false,
+				},
+			},
+		},
+		"Event": {
+			label:       "Event",
+			labelPlural: "Events",
+			keyPrefix:   "00U",
+			customFields: []map[string]any{
+				{
+					"name":        "WhoId",
+					"label":       "Name ID",
+					"type":        "reference",
+					"referenceTo": []string{"Contact", "Lead"},
+					"nillable":    true,
+					"updateable":  true,
+					"createable":  true,
+					"filterable":  true,
+					"sortable":    true,
+				},
+				{
+					"name":        "WhatId",
+					"label":       "Related To ID",
+					"type":        "reference",
+					"referenceTo": []string{"Account", "Case", "Opportunity"},
+					"nillable":    true,
+					"updateable":  true,
+					"createable":  true,
+					"filterable":  true,
+					"sortable":    true,
+				},
+				{
+					"name":       "Subject",
+					"label":      "Subject",
+					"type":       "string",
+					"length":     255,
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "ActivityDateTime",
+					"label":      "Start",
+					"type":       "datetime",
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "DurationInMinutes",
+					"label":      "Duration",
+					"type":       "int",
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "Location",
+					"label":      "Location",
+					"type":       "string",
+					"length":     255,
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":        "OwnerId",
+					"label":       "Owner ID",
+					"type":        "reference",
+					"referenceTo": []string{"User", "Group"},
+					"nillable":    false,
+					"updateable":  true,
+					"createable":  true,
+					"filterable":  true,
+					"sortable":    true,
+				},
+				{
+					"name":       "Description",
+					"label":      "Description",
+					"type":       "textarea",
+					"length":     32000,
+					"nillable":   true,
+					"updateable": true,
+					"createable": true,
+					"filterable": false,
+					"sortable":   false,
+				},
+			},
+		},
+		"ContentDocument": {
+			label:       "Content Document",
+			labelPlural: "Content Documents",
+			keyPrefix:   "069",
+			customFields: []map[string]any{
+				{
+					"name":       "Title",
+					"label":      "Title",
+					"type":       "string",
+					"length":     255,
+					"nillable":   false,
+					"updateable": true,
+					"createable": false,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "FileType",
+					"label":      "File Type",
+					"type":       "string",
+					"length":     20,
+					"nillable":   true,
+					"updateable": false,
+					"createable": false,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "ContentSize",
+					"label":      "Size",
+					"type":       "int",
+					"nillable":   true,
+					"updateable": false,
+					"createable": false,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":        "OwnerId",
+					"label":       "Owner ID",
+					"type":        "reference",
+					"referenceTo": []string{"User"},
+					"nillable":    false,
+					"updateable":  true,
+					"createable":  false,
+					"filterable":  true,
+					"sortable":    true,
+				},
+			},
+		},
+		"ContentVersion": {
+			label:       "Content Version",
+			labelPlural: "Content Versions",
+			keyPrefix:   "068",
+			customFields: []map[string]any{
+				{
+					"name":        "ContentDocumentId",
+					"label":       "Content Document ID",
+					"type":        "reference",
+					"referenceTo": []string{"ContentDocument"},
+					"nillable":    true,
+					"updateable":  false,
+					"createable":  true,
+					"filterable":  true,
+					"sortable":    true,
+				},
+				{
+					"name":       "Title",
+					"label":      "Title",
+					"type":       "string",
+					"length":     255,
+					"nillable":   false,
+					"updateable": true,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "VersionNumber",
+					"label":      "Version Number",
+					"type":       "string",
+					"length":     20,
+					"nillable":   true,
+					"updateable": false,
+					"createable": false,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "FileType",
+					"label":      "File Type",
+					"type":       "string",
+					"length":     20,
+					"nillable":   true,
+					"updateable": false,
+					"createable": true,
+					"filterable": true,
+					"sortable":   true,
+				},
+				{
+					"name":       "ContentSize",
+					"label":      "Size",
+					"type":       "int",
+					"nillable":   true,
+					"updateable": false,
+					"createable": false,
+					"filterable": true,
+					"sortable":   true,
+				},
+			},
+		},
 		"Account": {
 			label:       "Account",
 			labelPlural: "Accounts",
@@ -773,6 +1121,11 @@ func (h *SObjectHandler) getObjectMetadata(objectType string) map[string]any {
 
 	meta, ok := objectMeta[objectType]
 	if !ok {
+		// Schema-discovery virtual types (EntityDefinition / FieldDefinition)
+		// are described from the registry rather than the store.
+		if reg, regOk := schema.Get(objectType); regOk {
+			return metadataFromRegistry(reg)
+		}
 		// Check if data exists for this object type (for dynamic objects)
 		types := h.store.ObjectTypes()
 		found := false
@@ -822,6 +1175,110 @@ func (h *SObjectHandler) getObjectMetadata(objectType string) map[string]any {
 		"retrieveable": true,
 		"searchable":   true,
 		"custom":       false,
+	}
+}
+
+// HandleGlobalDescribe lists every registered SObject type.
+// GET /services/data/vXX.0/sobjects/
+func (h *SObjectHandler) HandleGlobalDescribe(w http.ResponseWriter, r *http.Request) {
+	h.logger.Debug().Msg("Global describe")
+
+	names := globalDescribeTypes()
+	sobjects := make([]map[string]any, 0, len(names))
+	for _, name := range names {
+		meta := h.getObjectMetadata(name)
+		if meta == nil {
+			continue
+		}
+		// Strip the verbose `fields` slice — global describe is the type list
+		// only; per-type details are served by /describe.
+		entry := map[string]any{}
+		for k, v := range meta {
+			if k == "fields" {
+				continue
+			}
+			entry[k] = v
+		}
+		sobjects = append(sobjects, entry)
+	}
+
+	resp := map[string]any{
+		"encoding":     "UTF-8",
+		"maxBatchSize": 200,
+		"sobjects":     sobjects,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// globalDescribeTypes returns the union of legacy described types and any
+// extra types registered in the schema package (e.g. EntityDefinition,
+// FieldDefinition), sorted for deterministic output.
+func globalDescribeTypes() []string {
+	known := []string{
+		"Account", "Contact", "User", "Case",
+		"EmailMessage", "CaseComment", "FeedItem", "FeedComment",
+		"Task", "Event", "ContentDocument", "ContentVersion",
+	}
+	seen := make(map[string]bool, len(known))
+	for _, n := range known {
+		seen[n] = true
+	}
+	for _, n := range schema.Names() {
+		if !seen[n] {
+			known = append(known, n)
+			seen[n] = true
+		}
+	}
+	return known
+}
+
+// metadataFromRegistry converts a schema.ObjectMeta into the same shape
+// returned by getObjectMetadata for legacy types.
+func metadataFromRegistry(m schema.ObjectMeta) map[string]any {
+	fields := make([]map[string]any, 0, len(m.Fields()))
+	for _, f := range m.Fields() {
+		entry := map[string]any{
+			"name":         f.Name,
+			"label":        f.Label,
+			"type":         f.Type,
+			"nillable":     f.Nillable,
+			"updateable":   f.Updateable,
+			"createable":   f.Createable,
+			"filterable":   f.Filterable,
+			"sortable":     f.Sortable,
+			"unique":       f.Unique,
+			"externalId":   f.ExternalID,
+			"defaultValue": nil,
+		}
+		if f.Length > 0 {
+			entry["length"] = f.Length
+		}
+		if len(f.ReferenceTo) > 0 {
+			entry["referenceTo"] = f.ReferenceTo
+		}
+		fields = append(fields, entry)
+	}
+	return map[string]any{
+		"name":        m.Name,
+		"label":       m.Label,
+		"labelPlural": m.LabelPlural,
+		"keyPrefix":   m.KeyPrefix,
+		"urls": map[string]string{
+			"sobject":     "/services/data/v66.0/sobjects/" + m.Name,
+			"describe":    "/services/data/v66.0/sobjects/" + m.Name + "/describe",
+			"rowTemplate": "/services/data/v66.0/sobjects/" + m.Name + "/{ID}",
+		},
+		"fields":       fields,
+		"createable":   m.Createable,
+		"updateable":   m.Updateable,
+		"deletable":    m.Deletable,
+		"queryable":    m.Queryable,
+		"retrieveable": m.Retrieveable,
+		"searchable":   m.Searchable,
+		"custom":       m.Custom,
 	}
 }
 

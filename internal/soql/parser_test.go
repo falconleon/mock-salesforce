@@ -204,6 +204,62 @@ func TestParser_CompleteQuery(t *testing.T) {
 	}
 }
 
+func TestParser_ParentChildSubQuery(t *testing.T) {
+	input := "SELECT Id, Name, (SELECT Id, Subject FROM Cases) FROM Account"
+	parser := soql.NewParser(input)
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if stmt.Object != "Account" {
+		t.Errorf("expected Object 'Account', got %q", stmt.Object)
+	}
+	if len(stmt.Fields) != 2 {
+		t.Errorf("expected 2 top-level fields, got %d", len(stmt.Fields))
+	}
+	if len(stmt.SubQueries) != 1 {
+		t.Fatalf("expected 1 subquery, got %d", len(stmt.SubQueries))
+	}
+	sub := stmt.SubQueries[0]
+	if sub.Relationship != "Cases" {
+		t.Errorf("expected Relationship 'Cases', got %q", sub.Relationship)
+	}
+	if len(sub.Fields) != 2 || sub.Fields[0].Name != "Id" || sub.Fields[1].Name != "Subject" {
+		t.Errorf("unexpected subquery fields: %+v", sub.Fields)
+	}
+}
+
+func TestParser_SubQueryWithWhereOrderLimit(t *testing.T) {
+	input := `SELECT Id, (SELECT Id, CommentBody FROM CaseComments WHERE IsPublished = TRUE ORDER BY CreatedDate DESC LIMIT 5) FROM Case`
+	parser := soql.NewParser(input)
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(stmt.SubQueries) != 1 {
+		t.Fatalf("expected 1 subquery, got %d", len(stmt.SubQueries))
+	}
+	sub := stmt.SubQueries[0]
+	if sub.Where == nil {
+		t.Error("expected subquery WHERE clause")
+	}
+	if len(sub.OrderBy) != 1 || !sub.OrderBy[0].Descending {
+		t.Errorf("expected DESC ORDER BY in subquery, got %+v", sub.OrderBy)
+	}
+	if sub.Limit == nil || *sub.Limit != 5 {
+		t.Errorf("expected LIMIT 5 in subquery, got %v", sub.Limit)
+	}
+}
+
+func TestParser_NestedSubQueryRejected(t *testing.T) {
+	input := "SELECT Id, (SELECT Id, (SELECT Id FROM CaseComments) FROM Cases) FROM Account"
+	parser := soql.NewParser(input)
+	if _, err := parser.Parse(); err == nil {
+		t.Error("expected error for nested subquery, got nil")
+	}
+}
+
 func TestParser_InvalidQuery(t *testing.T) {
 	tests := []struct {
 		name  string

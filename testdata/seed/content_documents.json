@@ -1,0 +1,26 @@
+[
+  {
+    "Id": "0693t00000AbCdEAAV",
+    "Title": "Incident Report — SAML Token Regression",
+    "FileType": "PDF",
+    "ContentSize": 184320,
+    "OwnerId": "0053t00000XyZAbAAV",
+    "CreatedDate": "2024-01-20T18:00:00Z"
+  },
+  {
+    "Id": "0693t00000FgHiJAAV",
+    "Title": "Customer Logs — case 5003t00002AbCdEAAV",
+    "FileType": "TXT",
+    "ContentSize": 51200,
+    "OwnerId": "0053t00000QrStUAAV",
+    "CreatedDate": "2024-01-20T18:15:00Z"
+  },
+  {
+    "Id": "0693t00000KlMnOAAV",
+    "Title": "Q1 Account Health Summary",
+    "FileType": "XLSX",
+    "ContentSize": 76800,
+    "OwnerId": "0053t00000LmNoPAAV",
+    "CreatedDate": "2024-01-20T19:00:00Z"
+  }
+]

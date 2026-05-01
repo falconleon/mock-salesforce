@@ -77,6 +77,8 @@ func (l *Lexer) NextToken() Token {
 		tok = Token{Type: TokenComma, Literal: ",", Pos: l.pos}
 	case '.':
 		tok = Token{Type: TokenDot, Literal: ".", Pos: l.pos}
+	case ':':
+		tok = Token{Type: TokenColon, Literal: ":", Pos: l.pos}
 	case '(':
 		tok = Token{Type: TokenLeftParen, Literal: "(", Pos: l.pos}
 	case ')':

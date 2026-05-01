@@ -11,6 +11,7 @@ import (
 
 	"github.com/falconleon/mock-salesforce/internal/config"
 	"github.com/falconleon/mock-salesforce/internal/store"
+	"github.com/falconleon/mock-salesforce/internal/users"
 )
 
 // Server represents the HTTP server for the mock API.
@@ -18,15 +19,17 @@ type Server struct {
 	httpServer *http.Server
 	config     *config.Config
 	store      store.Store
+	userStore  users.Store
 	logger     zerolog.Logger
 }
 
 // New creates a new Server with the given configuration.
-func New(cfg *config.Config, dataStore store.Store, logger zerolog.Logger) *Server {
+func New(cfg *config.Config, dataStore store.Store, userStore users.Store, logger zerolog.Logger) *Server {
 	s := &Server{
-		config: cfg,
-		store:  dataStore,
-		logger: logger,
+		config:    cfg,
+		store:     dataStore,
+		userStore: userStore,
+		logger:    logger,
 	}
 
 	handler := s.setupRoutes()

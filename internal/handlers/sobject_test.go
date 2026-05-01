@@ -393,6 +393,11 @@ func TestSObjectHandler_HandleDescribe_AllTypes(t *testing.T) {
 		{"EmailMessage", "02s"},
 		{"CaseComment", "00a"},
 		{"FeedItem", "0D5"},
+		{"FeedComment", "0D7"},
+		{"Task", "00T"},
+		{"Event", "00U"},
+		{"ContentDocument", "069"},
+		{"ContentVersion", "068"},
 		{"Account", "001"},
 		{"Contact", "003"},
 		{"User", "005"},
@@ -550,5 +555,183 @@ func TestSObjectHandler_CRUD_Integration(t *testing.T) {
 	handler.HandleGet(getRec3, getReq3)
 	if getRec3.Code != http.StatusNotFound {
 		t.Errorf("expected 404 after delete, got %d", getRec3.Code)
+	}
+}
+
+
+// TestSObjectHandler_NewSObjects_DescribeAndRetrieve loads the seed files for
+// the Wave-1 SObjects (FeedComment, Task, Event, ContentDocument, ContentVersion)
+// and verifies describe + a single record can be fetched from each.
+func TestSObjectHandler_NewSObjects_DescribeAndRetrieve(t *testing.T) {
+	s := store.NewMemoryStore()
+	logger := zerolog.Nop()
+	loader := store.NewLoader(s, logger)
+	if err := loader.LoadFromDirectory("../../testdata/seed"); err != nil {
+		t.Fatalf("failed to load seed: %v", err)
+	}
+	handler := handlers.NewSObjectHandler(s, logger)
+
+	cases := []struct {
+		objectType    string
+		keyPrefix     string
+		requiredField string
+	}{
+		{"FeedComment", "0D7", "FeedItemId"},
+		{"Task", "00T", "Subject"},
+		{"Event", "00U", "ActivityDateTime"},
+		{"ContentDocument", "069", "Title"},
+		{"ContentVersion", "068", "ContentDocumentId"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.objectType, func(t *testing.T) {
+			// Describe
+			descReq := httptest.NewRequest("GET", "/services/data/v66.0/sobjects/"+tc.objectType+"/describe", nil)
+			descReq = setPathValues(descReq, map[string]string{"version": "v66.0", "type": tc.objectType})
+			descRec := httptest.NewRecorder()
+			handler.HandleDescribe(descRec, descReq)
+
+			if descRec.Code != http.StatusOK {
+				t.Fatalf("describe %s: expected 200, got %d: %s", tc.objectType, descRec.Code, descRec.Body.String())
+			}
+
+			var descResp map[string]any
+			json.NewDecoder(descRec.Body).Decode(&descResp)
+			if descResp["keyPrefix"] != tc.keyPrefix {
+				t.Errorf("describe %s: expected keyPrefix %q, got %v", tc.objectType, tc.keyPrefix, descResp["keyPrefix"])
+			}
+			fields, _ := descResp["fields"].([]any)
+			fieldNames := map[string]bool{}
+			for _, f := range fields {
+				if fm, ok := f.(map[string]any); ok {
+					if n, ok := fm["name"].(string); ok {
+						fieldNames[n] = true
+					}
+				}
+			}
+			if !fieldNames[tc.requiredField] {
+				t.Errorf("describe %s: expected field %q in describe", tc.objectType, tc.requiredField)
+			}
+
+			// Retrieve at least one record
+			records, err := s.Query(tc.objectType, nil)
+			if err != nil {
+				t.Fatalf("query %s: %v", tc.objectType, err)
+			}
+			if len(records) == 0 {
+				t.Fatalf("expected at least one seeded %s record", tc.objectType)
+			}
+			id, _ := records[0]["Id"].(string)
+			if id == "" {
+				t.Fatalf("seeded %s record missing Id", tc.objectType)
+			}
+
+			getReq := httptest.NewRequest("GET", "/services/data/v66.0/sobjects/"+tc.objectType+"/"+id, nil)
+			getReq = setPathValues(getReq, map[string]string{"version": "v66.0", "type": tc.objectType, "id": id})
+			getRec := httptest.NewRecorder()
+			handler.HandleGet(getRec, getReq)
+
+			if getRec.Code != http.StatusOK {
+				t.Fatalf("get %s/%s: expected 200, got %d: %s", tc.objectType, id, getRec.Code, getRec.Body.String())
+			}
+
+			var getResp map[string]any
+			json.NewDecoder(getRec.Body).Decode(&getResp)
+			if getResp["Id"] != id {
+				t.Errorf("get %s: expected Id %q, got %v", tc.objectType, id, getResp["Id"])
+			}
+			attrs, _ := getResp["attributes"].(map[string]any)
+			if attrs == nil || attrs["type"] != tc.objectType {
+				t.Errorf("get %s: missing or wrong attributes.type, got %v", tc.objectType, attrs)
+			}
+		})
+	}
+}
+
+
+func TestSObjectHandler_HandleGlobalDescribe(t *testing.T) {
+	s := store.NewMemoryStore()
+	logger := zerolog.Nop()
+	handler := handlers.NewSObjectHandler(s, logger)
+
+	req := httptest.NewRequest("GET", "/services/data/v66.0/sobjects/", nil)
+	req = setPathValues(req, map[string]string{"version": "v66.0"})
+	rec := httptest.NewRecorder()
+
+	handler.HandleGlobalDescribe(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp["encoding"] != "UTF-8" {
+		t.Errorf("expected encoding UTF-8, got %v", resp["encoding"])
+	}
+	sobjects, ok := resp["sobjects"].([]any)
+	if !ok {
+		t.Fatalf("expected sobjects array, got %T", resp["sobjects"])
+	}
+	names := map[string]map[string]any{}
+	for _, s := range sobjects {
+		entry := s.(map[string]any)
+		names[entry["name"].(string)] = entry
+	}
+	expected := []string{
+		"Account", "Contact", "User", "Case",
+		"EmailMessage", "CaseComment", "FeedItem", "FeedComment",
+		"Task", "Event", "ContentDocument", "ContentVersion",
+		"EntityDefinition", "FieldDefinition",
+	}
+	for _, want := range expected {
+		entry, ok := names[want]
+		if !ok {
+			t.Errorf("expected sobject %q in global describe", want)
+			continue
+		}
+		if _, hasFields := entry["fields"]; hasFields {
+			t.Errorf("global describe entry %q should not include fields", want)
+		}
+		if entry["keyPrefix"] == nil {
+			t.Errorf("global describe entry %q missing keyPrefix", want)
+		}
+	}
+}
+
+func TestSObjectHandler_HandleDescribe_VirtualTypes(t *testing.T) {
+	s := store.NewMemoryStore()
+	logger := zerolog.Nop()
+	handler := handlers.NewSObjectHandler(s, logger)
+
+	for _, name := range []string{"EntityDefinition", "FieldDefinition"} {
+		t.Run(name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/services/data/v66.0/sobjects/"+name+"/describe", nil)
+			req = setPathValues(req, map[string]string{"version": "v66.0", "type": name})
+			rec := httptest.NewRecorder()
+			handler.HandleDescribe(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+			}
+			var resp map[string]any
+			if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			if resp["name"] != name {
+				t.Errorf("expected name %q, got %v", name, resp["name"])
+			}
+			if resp["queryable"] != true {
+				t.Errorf("expected queryable=true, got %v", resp["queryable"])
+			}
+			if resp["createable"] != false {
+				t.Errorf("expected createable=false, got %v", resp["createable"])
+			}
+			fields, _ := resp["fields"].([]any)
+			if len(fields) == 0 {
+				t.Error("expected non-empty fields slice")
+			}
+		})
 	}
 }

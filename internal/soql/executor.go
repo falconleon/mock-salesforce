@@ -4,18 +4,31 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/falconleon/mock-salesforce/internal/schema"
 	"github.com/falconleon/mock-salesforce/internal/store"
 )
 
 // Executor executes SOQL queries against a store.
 type Executor struct {
 	store store.Store
+	now   func() time.Time
 }
 
 // NewExecutor creates a new query executor.
 func NewExecutor(s store.Store) *Executor {
-	return &Executor{store: s}
+	return &Executor{store: s, now: time.Now}
+}
+
+// SetNow overrides the time source used to evaluate date literals. Intended
+// for tests; production code should use the default time.Now.
+func (e *Executor) SetNow(now func() time.Time) {
+	if now == nil {
+		e.now = time.Now
+		return
+	}
+	e.now = now
 }
 
 // QueryResult represents the result of a SOQL query.
@@ -30,10 +43,24 @@ func (e *Executor) Execute(stmt *SelectStatement) (*QueryResult, error) {
 	// Build filter function from WHERE clause
 	filter := e.buildFilter(stmt.Where)
 
-	// Query the store
-	records, err := e.store.Query(stmt.Object, filter)
-	if err != nil {
-		return nil, fmt.Errorf("querying store: %w", err)
+	// Source records: virtual schema-discovery objects bypass the store and
+	// are generated on the fly from the describe registry.
+	var (
+		records []store.Record
+		err     error
+	)
+	if schema.IsVirtual(stmt.Object) {
+		records = virtualRecords(stmt.Object, filter)
+	} else {
+		records, err = e.store.Query(stmt.Object, filter)
+		if err != nil {
+			return nil, fmt.Errorf("querying store: %w", err)
+		}
+	}
+
+	// Aggregate / GROUP BY path
+	if hasAggregateFields(stmt.Fields) || len(stmt.GroupBy) > 0 {
+		return e.executeAggregate(stmt, records)
 	}
 
 	// Apply ORDER BY
@@ -58,10 +85,83 @@ func (e *Executor) Execute(stmt *SelectStatement) (*QueryResult, error) {
 	// Project fields
 	projected := e.projectFields(records, stmt.Fields, stmt.Object)
 
+	// Resolve parent-child subqueries and attach as nested QueryResult-shaped maps
+	if len(stmt.SubQueries) > 0 {
+		for i, parent := range records {
+			parentID, _ := parent["Id"].(string)
+			for _, sub := range stmt.SubQueries {
+				nested, err := e.executeSubQuery(stmt.Object, parentID, sub)
+				if err != nil {
+					return nil, err
+				}
+				projected[i][sub.Relationship] = nested
+			}
+		}
+	}
+
 	return &QueryResult{
 		TotalSize: len(projected),
 		Done:      true,
 		Records:   projected,
+	}, nil
+}
+
+// executeSubQuery resolves a parent-child subquery for a given parent record.
+// Returns a nil value when the subquery yields no rows (matching SF's behaviour
+// of omitting empty child collections); otherwise a {totalSize, done, records} map.
+func (e *Executor) executeSubQuery(parentType, parentID string, sub SubQuery) (any, error) {
+	rels, ok := childRelationshipMeta[parentType]
+	if !ok {
+		return nil, fmt.Errorf("no child relationships registered for %s", parentType)
+	}
+	meta, ok := rels[sub.Relationship]
+	if !ok {
+		return nil, fmt.Errorf("unknown child relationship %s on %s", sub.Relationship, parentType)
+	}
+
+	// Load child records that point back to this parent via the FK.
+	filter := e.buildFilter(sub.Where)
+	fkValue := parentID
+	children, err := e.store.Query(meta.ChildType, func(r store.Record) bool {
+		v, ok := r[meta.FKField]
+		if !ok || v == nil {
+			return false
+		}
+		if fmt.Sprint(v) != fkValue {
+			return false
+		}
+		if filter != nil {
+			return filter(r)
+		}
+		return true
+	})
+	if err != nil {
+		return nil, fmt.Errorf("querying child %s: %w", meta.ChildType, err)
+	}
+
+	if len(sub.OrderBy) > 0 {
+		e.sortRecords(children, sub.OrderBy)
+	}
+	if sub.Offset != nil && *sub.Offset > 0 {
+		if *sub.Offset >= len(children) {
+			children = []store.Record{}
+		} else {
+			children = children[*sub.Offset:]
+		}
+	}
+	if sub.Limit != nil && *sub.Limit < len(children) {
+		children = children[:*sub.Limit]
+	}
+
+	if len(children) == 0 {
+		return nil, nil
+	}
+
+	projected := e.projectFields(children, sub.Fields, meta.ChildType)
+	return map[string]any{
+		"totalSize": len(projected),
+		"done":      true,
+		"records":   projected,
 	}, nil
 }
 
@@ -105,7 +205,7 @@ func (e *Executor) buildInFilter(c *InCondition) func(store.Record) bool {
 	return func(r store.Record) bool {
 		fieldValue := e.getFieldValue(r, c.Field)
 		for _, v := range c.Values {
-			if e.valuesEqual(fieldValue, v) {
+			if e.compare(fieldValue, "=", v) {
 				return !c.Not
 			}
 		}
@@ -131,6 +231,15 @@ func (e *Executor) buildLogicalFilter(c *LogicalCondition) func(store.Record) bo
 
 // getFieldValue retrieves a field value from a record, supporting relationship fields.
 func (e *Executor) getFieldValue(r store.Record, f Field) any {
+	if f.Aggregate != "" {
+		if v, ok := r[f.AggregateKey()]; ok {
+			return v
+		}
+		if f.Alias != "" {
+			return r[f.Alias]
+		}
+		return nil
+	}
 	if f.Relation != "" {
 		// Handle relationship field (e.g., Owner.Name)
 		if related, ok := r[f.Relation].(map[string]any); ok {
@@ -143,6 +252,9 @@ func (e *Executor) getFieldValue(r store.Record, f Field) any {
 
 // compare performs a comparison operation.
 func (e *Executor) compare(fieldValue any, op string, value any) bool {
+	if dl, ok := value.(DateLiteral); ok {
+		return e.compareDateLiteral(fieldValue, op, dl)
+	}
 	switch op {
 	case "=":
 		return e.valuesEqual(fieldValue, value)
@@ -158,6 +270,43 @@ func (e *Executor) compare(fieldValue any, op string, value any) bool {
 		return e.compareGreater(fieldValue, value) || e.valuesEqual(fieldValue, value)
 	case "LIKE":
 		return e.matchLike(fieldValue, value)
+	default:
+		return false
+	}
+}
+
+// compareDateLiteral applies SOQL date-literal comparison semantics. The
+// literal evaluates to a half-open range [start, end); the comparison is
+// performed against those range edges:
+//
+//	= : start <= field < end
+//	!= : field < start || field >= end
+//	<  : field < start
+//	<= : field < end
+//	>  : field >= end
+//	>= : field >= start
+func (e *Executor) compareDateLiteral(fieldValue any, op string, d DateLiteral) bool {
+	t, ok := parseFieldTime(fieldValue)
+	if !ok {
+		return false
+	}
+	start, end := d.Range(e.now())
+	if start.IsZero() && end.IsZero() {
+		return false
+	}
+	switch op {
+	case "=":
+		return !t.Before(start) && t.Before(end)
+	case "!=":
+		return t.Before(start) || !t.Before(end)
+	case "<":
+		return t.Before(start)
+	case "<=":
+		return t.Before(end)
+	case ">":
+		return !t.Before(end)
+	case ">=":
+		return !t.Before(start)
 	default:
 		return false
 	}
@@ -291,6 +440,36 @@ func (e *Executor) sortRecords(records []store.Record, orderBy []OrderByField) {
 		}
 		return false
 	})
+}
+
+// childRelationshipMeta defines parent-child relationships keyed on
+// (parent SObject type, plural relationship name) -> child SObject and FK field on that child.
+// Names match the real Salesforce relationship names exposed via describe.
+var childRelationshipMeta = map[string]map[string]struct {
+	ChildType string
+	FKField   string
+}{
+	"Account": {
+		"Cases":    {ChildType: "Case", FKField: "AccountId"},
+		"Contacts": {ChildType: "Contact", FKField: "AccountId"},
+	},
+	"Case": {
+		"CaseComments":             {ChildType: "CaseComment", FKField: "ParentId"},
+		"EmailMessages":            {ChildType: "EmailMessage", FKField: "ParentId"},
+		"Feeds":                    {ChildType: "FeedItem", FKField: "ParentId"},
+		"Tasks":                    {ChildType: "Task", FKField: "WhatId"},
+		"Events":                   {ChildType: "Event", FKField: "WhatId"},
+		"AttachedContentDocuments": {ChildType: "ContentDocumentLink", FKField: "LinkedEntityId"},
+	},
+	"Contact": {
+		"Cases": {ChildType: "Case", FKField: "ContactId"},
+	},
+	"User": {
+		"Cases": {ChildType: "Case", FKField: "OwnerId"},
+	},
+	"FeedItem": {
+		"FeedComments": {ChildType: "FeedComment", FKField: "FeedItemId"},
+	},
 }
 
 // relationshipMeta defines how to resolve relationship fields via FK lookup.

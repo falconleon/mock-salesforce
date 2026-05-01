@@ -3,43 +3,159 @@ package middleware
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog"
 
 	"github.com/falconleon/mock-salesforce/pkg/models"
 )
 
-const sessionCookieName = "sf_session"
+const (
+	sessionCookieName = "sf_session"
+	sessionDuration   = 12 * time.Hour
+)
 
 // publicPaths are paths that don't require authentication.
+// Endpoints that perform their own auth (revoke/introspect) or are
+// intentionally unauthenticated (token) are listed here.
 var publicPaths = map[string]bool{
-	"/services/oauth2/token": true,
-	"/health":                true,
-	"/":                      true,
-	"/login":                 true,
+	"/services/oauth2/token":            true,
+	"/services/oauth2/revoke":           true,
+	"/services/oauth2/introspect":       true,
+	"/services/oauth2/userinfo":         true,
+	"/services/oauth2/authorize":        true,
+	"/.well-known/openid-configuration": true,
+	"/health":                           true,
+	"/":                                 true,
+	"/login":                            true,
+	"/logout":                           true,
+}
+
+// TokenInfo carries metadata about an issued OAuth token. Used by the
+// auth middleware for validation and by the OAuth handlers for
+// introspection and userinfo.
+type TokenInfo struct {
+	Token     string
+	Type      string // "access" or "refresh"
+	Username  string
+	UserID    string
+	ClientID  string
+	Scope     string
+	IssuedAt  int64 // unix seconds
+	ExpiresAt int64 // unix seconds; 0 = no expiry
+	Refresh   string
+	// Family identifies the lineage of refresh-token rotations and the
+	// access tokens they minted. Used by /token refresh-rotation reuse
+	// detection (RFC 6749 §10.4) to revoke the entire chain when a
+	// rotated refresh is replayed.
+	Family string
+	// Revoked marks an entry that has been rotated or family-revoked but
+	// is retained so reuse can be detected. LookupToken treats Revoked
+	// entries as absent.
+	Revoked bool
 }
 
 var (
-	mu              sync.RWMutex
-	mockValidTokens = map[string]bool{
-		"mock-access-token": true,
+	mu         sync.RWMutex
+	mockTokens = map[string]*TokenInfo{
+		"mock-access-token": {Token: "mock-access-token", Type: "access"},
 	}
 )
 
-// RegisterToken adds a token to the valid tokens set.
+// RegisterToken adds a token to the valid tokens set with no metadata.
+// Retained for backwards compatibility with existing callers/tests.
 func RegisterToken(token string) {
 	mu.Lock()
-	mockValidTokens[token] = true
+	mockTokens[token] = &TokenInfo{Token: token, Type: "access"}
 	mu.Unlock()
+}
+
+// RegisterTokenInfo registers a token along with its full metadata.
+func RegisterTokenInfo(info *TokenInfo) {
+	if info == nil || info.Token == "" {
+		return
+	}
+	mu.Lock()
+	mockTokens[info.Token] = info
+	mu.Unlock()
+}
+
+// LookupToken returns the metadata for a token, or nil if unknown,
+// revoked, rotated, or expired. ExpiresAt == 0 means "no expiry"
+// (refresh tokens currently use this). Use LookupTokenRaw to inspect
+// rotated or expired entries (e.g. for refresh-token reuse detection
+// or to emit the RFC 6750 §3.1 "expired" challenge).
+func LookupToken(token string) *TokenInfo {
+	mu.RLock()
+	defer mu.RUnlock()
+	info := mockTokens[token]
+	if info == nil || info.Revoked {
+		return nil
+	}
+	if info.ExpiresAt > 0 && time.Now().Unix() >= info.ExpiresAt {
+		return nil
+	}
+	return info
+}
+
+// LookupTokenRaw returns the entry even if it has been rotated or
+// family-revoked. Returns nil only if the token has never been issued.
+func LookupTokenRaw(token string) *TokenInfo {
+	mu.RLock()
+	defer mu.RUnlock()
+	return mockTokens[token]
+}
+
+// RevokeToken removes a token (access or refresh) from the valid set.
+// Returns true if the token existed and was removed, false otherwise.
+func RevokeToken(token string) bool {
+	mu.Lock()
+	defer mu.Unlock()
+	if _, ok := mockTokens[token]; !ok {
+		return false
+	}
+	delete(mockTokens, token)
+	return true
+}
+
+// MarkRevoked flags a token as revoked but retains its metadata so
+// reuse detection can recognise replays. Returns true if the entry was
+// known.
+func MarkRevoked(token string) bool {
+	mu.Lock()
+	defer mu.Unlock()
+	info, ok := mockTokens[token]
+	if !ok {
+		return false
+	}
+	info.Revoked = true
+	return true
+}
+
+// RevokeFamily marks every token in the given family as revoked. Used
+// when a rotated refresh token is replayed (RFC 6749 §10.4 advises
+// revoking the whole chain) so all derived access tokens stop working.
+// A zero family is a no-op.
+func RevokeFamily(family string) int {
+	if family == "" {
+		return 0
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	n := 0
+	for _, info := range mockTokens {
+		if info.Family == family && !info.Revoked {
+			info.Revoked = true
+			n++
+		}
+	}
+	return n
 }
 
 // Auth validates Bearer tokens and session cookies on protected routes.
@@ -65,8 +181,8 @@ func Auth(logger zerolog.Logger, sessionSecret string) func(http.Handler) http.H
 			}
 
 			// Try session cookie first (for UI browsing)
-			if email, ok := validateSessionCookie(r, sessionSecret); ok {
-				ctx := context.WithValue(r.Context(), contextKeyAuthUser, email)
+			if claims, ok := validateSessionCookie(r, sessionSecret); ok {
+				ctx := context.WithValue(r.Context(), contextKeyAuthUser, claims.Email)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -75,21 +191,44 @@ func Auth(logger zerolog.Logger, sessionSecret string) func(http.Handler) http.H
 			authHeader := r.Header.Get("Authorization")
 			if strings.HasPrefix(authHeader, "Bearer ") {
 				token := strings.TrimPrefix(authHeader, "Bearer ")
-				mu.RLock()
-				valid := mockValidTokens[token]
-				mu.RUnlock()
-				if valid {
-					SetSessionCookie(w, "bearer-user", sessionSecret)
+				if info := LookupToken(token); info != nil && info.Type != "refresh" {
+					username := info.Username
+					if username == "" {
+						username = "bearer-user"
+					}
+					SetSessionCookie(w, username, sessionSecret)
 					next.ServeHTTP(w, r)
+					return
+				}
+				// RFC 6750 §3.1: if the bearer token is a known access
+				// token whose ExpiresAt has passed, surface the
+				// "invalid_token"/"The access token expired" challenge so
+				// clients can refresh rather than retrying with the same
+				// stale credential.
+				if raw := LookupTokenRaw(token); raw != nil && raw.Type == "access" && !raw.Revoked &&
+					raw.ExpiresAt > 0 && time.Now().Unix() >= raw.ExpiresAt {
+					w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token", error_description="The access token expired"`)
+					writeAuthError(w, logger, "The access token expired")
 					return
 				}
 			}
 
 			// Auth failed
 			if isHTMLRequest(r) {
-				redirectURL := "/"
+				params := url.Values{}
+				if r.URL.Path != "" && r.URL.Path != "/" {
+					nextURL := r.URL.Path
+					if r.URL.RawQuery != "" {
+						nextURL += "?" + r.URL.RawQuery
+					}
+					params.Set("next", nextURL)
+				}
 				if fr := ExtractFalconReturn(r); fr != "" {
-					redirectURL = "/?falcon_return=" + url.QueryEscape(fr)
+					params.Set(falconReturnParam, fr)
+				}
+				redirectURL := "/login"
+				if encoded := params.Encode(); encoded != "" {
+					redirectURL += "?" + encoded
 				}
 				http.Redirect(w, r, redirectURL, http.StatusFound)
 				return
@@ -103,51 +242,113 @@ type contextKey string
 
 const contextKeyAuthUser contextKey = "auth_user"
 
-// SetSessionCookie creates a signed session cookie.
+// SetSessionCookie mints an HS256 JWT for the given email and writes it
+// as the sf_session cookie. Sub/Name are derived from email when not
+// supplied externally; expiry is sessionDuration.
 func SetSessionCookie(w http.ResponseWriter, email, secret string) {
-	sig := signSession(email, secret)
+	now := time.Now()
+	claims := SessionClaims{
+		Sub:   email,
+		Name:  email,
+		Email: email,
+		Iat:   now.Unix(),
+		Exp:   now.Add(sessionDuration).Unix(),
+	}
+	tok, err := MintSessionJWT(claims, secret)
+	if err != nil {
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
-		Value:    email + "|" + sig,
+		Value:    tok,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   3600 * 8, // 8 hours
+		MaxAge:   int(sessionDuration / time.Second),
 	})
 }
 
-func signSession(email, secret string) string {
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(email))
-	return hex.EncodeToString(mac.Sum(nil))
+// ClearSessionCookie expires the sf_session cookie at the browser.
+func ClearSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
 }
 
-// ValidateSession checks if the request has a valid session cookie.
+// ValidateSession reports whether the request carries a valid session
+// cookie, returning the authenticated email on success. Retained for
+// callers that only care about the email; use ValidateSessionClaims
+// when full claim access is required.
 func ValidateSession(r *http.Request, secret string) (string, bool) {
+	c, ok := validateSessionCookie(r, secret)
+	if !ok {
+		return "", false
+	}
+	return c.Email, true
+}
+
+// ValidateSessionClaims returns the full decoded claim set for a valid
+// sf_session cookie, or false if the cookie is missing/invalid/expired.
+func ValidateSessionClaims(r *http.Request, secret string) (*SessionClaims, bool) {
 	return validateSessionCookie(r, secret)
 }
 
-func validateSessionCookie(r *http.Request, secret string) (string, bool) {
+func validateSessionCookie(r *http.Request, secret string) (*SessionClaims, bool) {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
-		return "", false
+		return nil, false
 	}
-	parts := strings.SplitN(cookie.Value, "|", 2)
-	if len(parts) != 2 {
-		return "", false
+	claims, err := ParseSessionJWT(cookie.Value, secret)
+	if err != nil {
+		return nil, false
 	}
-	email, sig := parts[0], parts[1]
-	expected := signSession(email, secret)
-	if !hmac.Equal([]byte(sig), []byte(expected)) {
-		return "", false
-	}
-	return email, true
+	return claims, true
 }
 
+// isHTMLRequest decides whether a failed-auth response should be a 302
+// redirect to /login (browser flow) or a 401 JSON error (API flow).
+//
+// Negotiation rule:
+//   - Explicit Bearer Authorization → API caller → 401 JSON.
+//   - /services/* and /admin/* are API surfaces → 401 JSON regardless of Accept.
+//   - Accept header that excludes text/html (e.g. application/json) → 401 JSON.
+//   - Otherwise: path is a known UI route AND Accept allows HTML
+//     (text/html, */*, or absent) → 302 redirect.
+//   - Default → 401 JSON.
 func isHTMLRequest(r *http.Request) bool {
+	if strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+		return false
+	}
+	path := r.URL.Path
+	if strings.HasPrefix(path, "/services/") || strings.HasPrefix(path, "/admin/") {
+		return false
+	}
 	accept := r.Header.Get("Accept")
-	return strings.Contains(accept, "text/html") ||
-		strings.HasPrefix(r.URL.Path, "/lightning/")
+	acceptHTML := accept == "" ||
+		strings.Contains(accept, "text/html") ||
+		strings.Contains(accept, "*/*")
+	if !acceptHTML {
+		return false
+	}
+	return isUIRoute(path)
+}
+
+// isUIRoute reports whether the path is one of the browser-facing
+// routes registered in router.go (Lightning pages, /home, settings,
+// playground). New UI route prefixes should be added here so unauth
+// hits redirect to /login instead of returning JSON 401.
+func isUIRoute(path string) bool {
+	if path == "/home" {
+		return true
+	}
+	return strings.HasPrefix(path, "/lightning/") ||
+		strings.HasPrefix(path, "/settings") ||
+		strings.HasPrefix(path, "/playground")
 }
 
 func writeAuthError(w http.ResponseWriter, logger zerolog.Logger, msg string) {
@@ -166,7 +367,9 @@ func writeAuthError(w http.ResponseWriter, logger zerolog.Logger, msg string) {
 	json.NewEncoder(w).Encode(errors)
 }
 
-// LoginHandler handles POST /login for UI session auth.
+// LoginHandler handles POST /login for UI session auth. On success it
+// mints a JWT session cookie and redirects to ?next=<path> when that
+// is a same-origin relative path, or /home otherwise.
 func LoginHandler(users map[string]string, sessionSecret, basePath string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -176,26 +379,67 @@ func LoginHandler(users map[string]string, sessionSecret, basePath string) http.
 		email := r.FormValue("email")
 		password := r.FormValue("password")
 		falconReturn := ValidateFalconReturn(r.FormValue(falconReturnParam))
+		next := sanitizeNext(r.FormValue("next"))
 
-		// Validate against multi-user store
 		expected, ok := users[email]
 		if !ok || subtle.ConstantTimeCompare([]byte(expected), []byte(password)) != 1 {
-			redirectURL := basePath + "/?error=invalid"
-			if falconReturn != "" {
-				redirectURL += "&falcon_return=" + url.QueryEscape(falconReturn)
+			params := url.Values{}
+			params.Set("error", "invalid")
+			if next != "" {
+				params.Set("next", next)
 			}
-			http.Redirect(w, r, redirectURL, http.StatusFound)
+			if falconReturn != "" {
+				params.Set(falconReturnParam, falconReturn)
+			}
+			http.Redirect(w, r, basePath+"/login?"+params.Encode(), http.StatusFound)
 			return
 		}
 
 		SetSessionCookie(w, email, sessionSecret)
 
-		// Store falcon_return in cookie if present
 		if falconReturn != "" {
 			SetFalconReturnCookie(w, falconReturn)
 		}
 
-		// Redirect to case list
-		http.Redirect(w, r, basePath+"/lightning/o/Case/list", http.StatusFound)
+		dest := basePath + "/home"
+		if next != "" {
+			dest = basePath + next
+		}
+		http.Redirect(w, r, dest, http.StatusFound)
 	}
+}
+
+// LogoutHandler clears the session cookie and redirects to /login.
+func LogoutHandler(basePath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ClearSessionCookie(w)
+		http.Redirect(w, r, basePath+"/login", http.StatusFound)
+	}
+}
+
+// ResetTokenStore resets the in-memory token store to its initial state
+// (containing only the built-in "mock-access-token" sentinel). It is
+// intended exclusively for test use to prevent token-state leakage
+// between test functions when running with -count=N or -shuffle=on.
+func ResetTokenStore() {
+	mu.Lock()
+	mockTokens = map[string]*TokenInfo{
+		"mock-access-token": {Token: "mock-access-token", Type: "access"},
+	}
+	mu.Unlock()
+}
+
+// sanitizeNext rejects absolute URLs and protocol-relative paths so the
+// next parameter cannot be used as an open redirect.
+func sanitizeNext(s string) string {
+	if s == "" {
+		return ""
+	}
+	if !strings.HasPrefix(s, "/") {
+		return ""
+	}
+	if strings.HasPrefix(s, "//") {
+		return ""
+	}
+	return s
 }

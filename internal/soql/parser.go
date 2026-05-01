@@ -33,12 +33,10 @@ func (p *Parser) Parse() (*SelectStatement, error) {
 	}
 	p.nextToken()
 
-	// Parse fields
-	fields, err := p.parseFields()
-	if err != nil {
+	// Parse fields (and any parent-child subqueries) in the SELECT list
+	if err := p.parseSelectList(stmt); err != nil {
 		return nil, err
 	}
-	stmt.Fields = fields
 
 	// Expect FROM
 	if !p.expectCurrent(TokenFrom) {
@@ -61,6 +59,30 @@ func (p *Parser) Parse() (*SelectStatement, error) {
 			return nil, err
 		}
 		stmt.Where = where
+	}
+
+	// Parse optional GROUP BY
+	if p.curTokenIs(TokenGroup) {
+		p.nextToken()
+		if !p.expectCurrent(TokenBy) {
+			return nil, fmt.Errorf("expected BY after GROUP, got %s", p.curToken.Type)
+		}
+		p.nextToken()
+		groupBy, err := p.parseGroupBy()
+		if err != nil {
+			return nil, err
+		}
+		stmt.GroupBy = groupBy
+	}
+
+	// Parse optional HAVING
+	if p.curTokenIs(TokenHaving) {
+		p.nextToken()
+		cond, err := p.parseCondition()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Having = &WhereClause{Condition: cond}
 	}
 
 	// Parse optional ORDER BY
@@ -102,16 +124,23 @@ func (p *Parser) Parse() (*SelectStatement, error) {
 	return stmt, nil
 }
 
-// parseFields parses the field list after SELECT.
-func (p *Parser) parseFields() ([]Field, error) {
-	var fields []Field
-
+// parseSelectList parses the SELECT list, populating Fields and SubQueries on stmt.
+// A parenthesised SELECT in the list is a parent-child subquery.
+func (p *Parser) parseSelectList(stmt *SelectStatement) error {
 	for {
-		field, err := p.parseField()
-		if err != nil {
-			return nil, err
+		if p.curTokenIs(TokenLeftParen) && p.peekTokenIs(TokenSelect) {
+			sub, err := p.parseSubQuery()
+			if err != nil {
+				return err
+			}
+			stmt.SubQueries = append(stmt.SubQueries, *sub)
+		} else {
+			field, err := p.parseSelectField()
+			if err != nil {
+				return err
+			}
+			stmt.Fields = append(stmt.Fields, field)
 		}
-		fields = append(fields, field)
 
 		if !p.curTokenIs(TokenComma) {
 			break
@@ -119,7 +148,184 @@ func (p *Parser) parseFields() ([]Field, error) {
 		p.nextToken() // consume comma
 	}
 
+	return nil
+}
+
+// parseSelectField parses a SELECT-list field, which may be a regular field,
+// a relationship field, or an aggregate function call, optionally followed by
+// an alias (`AS alias` or bare `alias`).
+func (p *Parser) parseSelectField() (Field, error) {
+	field, err := p.parseFieldOrAggregate()
+	if err != nil {
+		return Field{}, err
+	}
+	// Optional alias.
+	if p.curTokenIs(TokenAs) {
+		p.nextToken()
+		if !p.curTokenIs(TokenIdent) {
+			return Field{}, fmt.Errorf("expected alias after AS, got %s", p.curToken.Type)
+		}
+		field.Alias = p.curToken.Literal
+		p.nextToken()
+	} else if p.curTokenIs(TokenIdent) {
+		field.Alias = p.curToken.Literal
+		p.nextToken()
+	}
+	return field, nil
+}
+
+// parseFieldOrAggregate parses either a plain (relationship) field or an
+// aggregate function call: AGG(field) or COUNT().
+func (p *Parser) parseFieldOrAggregate() (Field, error) {
+	if !p.curTokenIs(TokenIdent) {
+		return Field{}, fmt.Errorf("expected field name, got %s", p.curToken.Type)
+	}
+	if p.peekTokenIs(TokenLeftParen) {
+		upper := strings.ToUpper(p.curToken.Literal)
+		if isAggregateName(upper) {
+			p.nextToken() // consume function name
+			p.nextToken() // consume '('
+			f := Field{Aggregate: upper}
+			if p.curTokenIs(TokenRightParen) {
+				if upper != "COUNT" {
+					return Field{}, fmt.Errorf("%s requires an argument", upper)
+				}
+				p.nextToken() // consume ')'
+				return f, nil
+			}
+			inner, err := p.parseField()
+			if err != nil {
+				return Field{}, err
+			}
+			f.Name = inner.Name
+			f.Relation = inner.Relation
+			if !p.curTokenIs(TokenRightParen) {
+				return Field{}, fmt.Errorf("expected ) after %s argument, got %s", upper, p.curToken.Type)
+			}
+			p.nextToken()
+			return f, nil
+		}
+	}
+	return p.parseField()
+}
+
+// isAggregateName reports whether the upper-case identifier is a recognized
+// SOQL aggregate function name.
+func isAggregateName(s string) bool {
+	switch s {
+	case "COUNT", "COUNT_DISTINCT", "SUM", "AVG", "MIN", "MAX":
+		return true
+	}
+	return false
+}
+
+// parseGroupBy parses a comma-separated field list after GROUP BY.
+func (p *Parser) parseGroupBy() ([]Field, error) {
+	var fields []Field
+	for {
+		f, err := p.parseField()
+		if err != nil {
+			return nil, err
+		}
+		fields = append(fields, f)
+		if !p.curTokenIs(TokenComma) {
+			break
+		}
+		p.nextToken()
+	}
 	return fields, nil
+}
+
+// parseSubQuery parses a parent-child subquery: ( SELECT ... FROM Rel [WHERE ...] [ORDER BY ...] [LIMIT N] [OFFSET N] ).
+// Nested subqueries are not supported.
+func (p *Parser) parseSubQuery() (*SubQuery, error) {
+	if !p.expectCurrent(TokenLeftParen) {
+		return nil, fmt.Errorf("expected ( for subquery, got %s", p.curToken.Type)
+	}
+	p.nextToken()
+
+	if !p.expectCurrent(TokenSelect) {
+		return nil, fmt.Errorf("expected SELECT inside subquery, got %s", p.curToken.Type)
+	}
+	p.nextToken()
+
+	sub := &SubQuery{}
+
+	// Parse field list (no nested subqueries)
+	for {
+		if p.curTokenIs(TokenLeftParen) {
+			return nil, fmt.Errorf("nested subqueries are not supported")
+		}
+		field, err := p.parseField()
+		if err != nil {
+			return nil, err
+		}
+		sub.Fields = append(sub.Fields, field)
+		if !p.curTokenIs(TokenComma) {
+			break
+		}
+		p.nextToken() // consume comma
+	}
+
+	if !p.expectCurrent(TokenFrom) {
+		return nil, fmt.Errorf("expected FROM in subquery, got %s", p.curToken.Type)
+	}
+	p.nextToken()
+
+	if !p.expectCurrent(TokenIdent) {
+		return nil, fmt.Errorf("expected relationship name in subquery, got %s", p.curToken.Type)
+	}
+	sub.Relationship = p.curToken.Literal
+	p.nextToken()
+
+	if p.curTokenIs(TokenWhere) {
+		p.nextToken()
+		where, err := p.parseWhereClause()
+		if err != nil {
+			return nil, err
+		}
+		sub.Where = where
+	}
+
+	if p.curTokenIs(TokenOrder) {
+		p.nextToken()
+		if !p.expectCurrent(TokenBy) {
+			return nil, fmt.Errorf("expected BY after ORDER in subquery, got %s", p.curToken.Type)
+		}
+		p.nextToken()
+		orderBy, err := p.parseOrderBy()
+		if err != nil {
+			return nil, err
+		}
+		sub.OrderBy = orderBy
+	}
+
+	if p.curTokenIs(TokenLimit) {
+		p.nextToken()
+		if !p.expectCurrent(TokenNumber) {
+			return nil, fmt.Errorf("expected number after LIMIT in subquery, got %s", p.curToken.Type)
+		}
+		limit, _ := strconv.Atoi(p.curToken.Literal)
+		sub.Limit = &limit
+		p.nextToken()
+	}
+
+	if p.curTokenIs(TokenOffset) {
+		p.nextToken()
+		if !p.expectCurrent(TokenNumber) {
+			return nil, fmt.Errorf("expected number after OFFSET in subquery, got %s", p.curToken.Type)
+		}
+		offset, _ := strconv.Atoi(p.curToken.Literal)
+		sub.Offset = &offset
+		p.nextToken()
+	}
+
+	if !p.expectCurrent(TokenRightParen) {
+		return nil, fmt.Errorf("expected ) to close subquery, got %s", p.curToken.Type)
+	}
+	p.nextToken()
+
+	return sub, nil
 }
 
 // parseField parses a single field (possibly with relationship).
@@ -205,8 +411,8 @@ func (p *Parser) parseSimpleCondition() (Condition, error) {
 		return cond, nil
 	}
 
-	// Parse field
-	field, err := p.parseField()
+	// Parse field (allow aggregate function for HAVING)
+	field, err := p.parseFieldOrAggregate()
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +483,7 @@ func (p *Parser) parseOperator() (string, error) {
 	return op, nil
 }
 
-// parseValue parses a literal value (string, number, boolean, null).
+// parseValue parses a literal value (string, number, boolean, null, date literal).
 func (p *Parser) parseValue() (any, error) {
 	switch p.curToken.Type {
 	case TokenString:
@@ -302,6 +508,29 @@ func (p *Parser) parseValue() (any, error) {
 	case TokenNull:
 		p.nextToken()
 		return nil, nil
+	case TokenIdent:
+		name := strings.ToUpper(p.curToken.Literal)
+		if isSimpleDateLiteral(name) {
+			p.nextToken()
+			return DateLiteral{Name: name}, nil
+		}
+		if isParamDateLiteral(name) {
+			p.nextToken()
+			if !p.curTokenIs(TokenColon) {
+				return nil, fmt.Errorf("expected ':' after %s, got %s", name, p.curToken.Type)
+			}
+			p.nextToken()
+			if !p.curTokenIs(TokenNumber) {
+				return nil, fmt.Errorf("expected number after %s:, got %s", name, p.curToken.Type)
+			}
+			n, err := strconv.Atoi(p.curToken.Literal)
+			if err != nil || n < 0 {
+				return nil, fmt.Errorf("invalid parameter for %s: %s", name, p.curToken.Literal)
+			}
+			p.nextToken()
+			return DateLiteral{Name: name, N: n}, nil
+		}
+		return nil, fmt.Errorf("expected value, got identifier %q", p.curToken.Literal)
 	default:
 		return nil, fmt.Errorf("expected value, got %s (%s)", p.curToken.Type, p.curToken.Literal)
 	}
@@ -341,7 +570,7 @@ func (p *Parser) parseOrderBy() ([]OrderByField, error) {
 	var fields []OrderByField
 
 	for {
-		field, err := p.parseField()
+		field, err := p.parseFieldOrAggregate()
 		if err != nil {
 			return nil, err
 		}

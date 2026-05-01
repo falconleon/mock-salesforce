@@ -39,6 +39,9 @@ const (
 	TokenNulls
 	TokenFirst
 	TokenLast
+	TokenGroup
+	TokenHaving
+	TokenAs
 
 	// Operators
 	TokenEquals       // =
@@ -51,6 +54,7 @@ const (
 	// Delimiters
 	TokenComma       // ,
 	TokenDot         // .
+	TokenColon       // :
 	TokenLeftParen   // (
 	TokenRightParen  // )
 	TokenLeftBrace   // {
@@ -119,6 +123,12 @@ func (t TokenType) String() string {
 		return "FIRST"
 	case TokenLast:
 		return "LAST"
+	case TokenGroup:
+		return "GROUP"
+	case TokenHaving:
+		return "HAVING"
+	case TokenAs:
+		return "AS"
 	case TokenEquals:
 		return "="
 	case TokenNotEquals:
@@ -135,6 +145,8 @@ func (t TokenType) String() string {
 		return ","
 	case TokenDot:
 		return "."
+	case TokenColon:
+		return ":"
 	case TokenLeftParen:
 		return "("
 	case TokenRightParen:
@@ -166,6 +178,9 @@ var keywords = map[string]TokenType{
 	"NULLS":  TokenNulls,
 	"FIRST":  TokenFirst,
 	"LAST":   TokenLast,
+	"GROUP":  TokenGroup,
+	"HAVING": TokenHaving,
+	"AS":     TokenAs,
 }
 
 // LookupIdent returns the token type for an identifier.

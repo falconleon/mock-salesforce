@@ -1,0 +1,26 @@
+[
+  {
+    "Id": "0D73t00000AbCdEAAV",
+    "FeedItemId": "0D53t00000KlMnOAAV",
+    "ParentId": "5003t00002AbCdEAAV",
+    "CommentBody": "Confirmed. Patch validated against staging — proceeding with prod rollout.",
+    "CreatedById": "0053t00000QrStUAAV",
+    "CreatedDate": "2024-01-20T08:55:00Z"
+  },
+  {
+    "Id": "0D73t00000FgHiJAAV",
+    "FeedItemId": "0D53t00000PqRsTAAV",
+    "ParentId": "5003t00002AbCdEAAV",
+    "CommentBody": "Customer notified via support email. Standing by for confirmation.",
+    "CreatedById": "0053t00000XyZAbAAV",
+    "CreatedDate": "2024-01-20T09:10:00Z"
+  },
+  {
+    "Id": "0D73t00000KlMnOAAV",
+    "FeedItemId": "0D53t00000KlMnOAAV",
+    "ParentId": "5003t00002AbCdEAAV",
+    "CommentBody": "+1 — looped in security to review the token-validation change.",
+    "CreatedById": "0053t00000LmNoPAAV",
+    "CreatedDate": "2024-01-20T09:25:00Z"
+  }
+]

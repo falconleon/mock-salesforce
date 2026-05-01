@@ -428,3 +428,61 @@ func TestQueryHandler_HandleQuery_EmptyQueryParameter(t *testing.T) {
 		t.Errorf("expected status 400, got %d", rec.Code)
 	}
 }
+
+
+// TestQueryHandler_HandleQuery_EntityDefinition exercises the schema-discovery
+// virtual SObject through the standard /query endpoint.
+func TestQueryHandler_HandleQuery_EntityDefinition(t *testing.T) {
+	memStore := store.NewMemoryStore()
+	logger := zerolog.Nop()
+	handler := handlers.NewQueryHandler(memStore, logger)
+
+	req := httptest.NewRequest("GET",
+		"/services/data/v66.0/query?q=SELECT+QualifiedApiName,KeyPrefix+FROM+EntityDefinition+WHERE+QualifiedApiName+%3D+%27Case%27", nil)
+	rec := httptest.NewRecorder()
+	handler.HandleQuery(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp models.QueryResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.TotalSize != 1 {
+		t.Fatalf("expected totalSize=1, got %d", resp.TotalSize)
+	}
+	rec0 := resp.Records[0]
+	if rec0["QualifiedApiName"] != "Case" || rec0["KeyPrefix"] != "500" {
+		t.Errorf("unexpected record: %v", rec0)
+	}
+}
+
+// TestQueryHandler_HandleQuery_FieldDefinition exercises FieldDefinition with a
+// relationship-style filter on EntityDefinition.QualifiedApiName.
+func TestQueryHandler_HandleQuery_FieldDefinition(t *testing.T) {
+	memStore := store.NewMemoryStore()
+	logger := zerolog.Nop()
+	handler := handlers.NewQueryHandler(memStore, logger)
+
+	req := httptest.NewRequest("GET",
+		"/services/data/v66.0/query?q=SELECT+QualifiedApiName,DataType,Label+FROM+FieldDefinition+WHERE+EntityDefinition.QualifiedApiName+%3D+%27Case%27", nil)
+	rec := httptest.NewRecorder()
+	handler.HandleQuery(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp models.QueryResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.TotalSize == 0 {
+		t.Fatal("expected at least one Case field")
+	}
+	for _, r := range resp.Records {
+		if r["QualifiedApiName"] == nil || r["DataType"] == nil {
+			t.Errorf("missing projected fields in %v", r)
+		}
+	}
+}

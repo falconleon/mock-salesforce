@@ -22,36 +22,43 @@
                 <div class="description">{{fieldStr $case "Description"}}</div>
             </div>
 
-            {{if .Emails}}
-            <div class="card">
-                <h3>Email Messages ({{len .Emails}})</h3>
-                {{range .Emails}}
-                <div class="email-item">
-                    <div class="email-header">
-                        <strong>{{fieldStr . "FromAddress"}}</strong> → {{fieldStr . "ToAddress"}}
-                        <span class="email-date">{{fieldStr . "MessageDate"}}</span>
-                    </div>
-                    <div class="email-subject">{{fieldStr . "Subject"}}</div>
-                    <div class="email-body">{{fieldStr . "TextBody"}}</div>
+            <div class="card related-tabs-card">
+                {{$caseID := fieldStr $case "Id"}}
+                {{$active := .ActiveTab}}
+                <div class="tabs" role="tablist">
+                    <a class="tab{{if eq $active "emails"}} active{{end}}" role="tab" data-tab="emails"
+                        href="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=emails"
+                        hx-get="{{basePath}}/lightning/r/Case/{{$caseID}}/related/emails"
+                        hx-target="#tab-content" hx-swap="innerHTML"
+                        hx-push-url="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=emails"
+                        onclick="sfActivateTab(this)">Emails ({{len .Emails}})</a>
+                    <a class="tab{{if eq $active "comments"}} active{{end}}" role="tab" data-tab="comments"
+                        href="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=comments"
+                        hx-get="{{basePath}}/lightning/r/Case/{{$caseID}}/related/comments"
+                        hx-target="#tab-content" hx-swap="innerHTML"
+                        hx-push-url="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=comments"
+                        onclick="sfActivateTab(this)">Comments ({{len .Comments}})</a>
+                    <a class="tab{{if eq $active "feed"}} active{{end}}" role="tab" data-tab="feed"
+                        href="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=feed"
+                        hx-get="{{basePath}}/lightning/r/Case/{{$caseID}}/related/feed"
+                        hx-target="#tab-content" hx-swap="innerHTML"
+                        hx-push-url="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=feed"
+                        onclick="sfActivateTab(this)">Feed ({{len .FeedItems}})</a>
+                    <a class="tab{{if eq $active "activities"}} active{{end}}" role="tab" data-tab="activities"
+                        href="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=activities"
+                        hx-get="{{basePath}}/lightning/r/Case/{{$caseID}}/related/activities"
+                        hx-target="#tab-content" hx-swap="innerHTML"
+                        hx-push-url="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=activities"
+                        onclick="sfActivateTab(this)">Activities ({{.ActivitiesCount}})</a>
+                    <a class="tab{{if eq $active "files"}} active{{end}}" role="tab" data-tab="files"
+                        href="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=files"
+                        hx-get="{{basePath}}/lightning/r/Case/{{$caseID}}/related/files"
+                        hx-target="#tab-content" hx-swap="innerHTML"
+                        hx-push-url="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=files"
+                        onclick="sfActivateTab(this)">Files ({{len .Files}})</a>
                 </div>
-                {{end}}
+                <div id="tab-content">{{.InitialTabHTML}}</div>
             </div>
-            {{end}}
-
-            {{if .Comments}}
-            <div class="card">
-                <h3>Comments ({{len .Comments}})</h3>
-                {{range .Comments}}
-                <div class="comment-item">
-                    <div class="comment-header">
-                        <strong>{{fieldStr . "CreatedBy"}}</strong>
-                        <span class="comment-date">{{fieldStr . "CreatedDate"}}</span>
-                    </div>
-                    <div class="comment-body">{{fieldStr . "CommentBody"}}</div>
-                </div>
-                {{end}}
-            </div>
-            {{end}}
         </div>
 
         <div class="record-sidebar">
@@ -81,4 +88,12 @@
         </div>
     </div>
 </div>
+<script src="{{basePath}}/static/htmx.min.js"></script>
+<script>
+function sfActivateTab(btn) {
+    var tabs = btn.parentElement.querySelectorAll('.tab');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+    btn.classList.add('active');
+}
+</script>
 {{end}}

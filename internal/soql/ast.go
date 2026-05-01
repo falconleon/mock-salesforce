@@ -2,18 +2,34 @@ package soql
 
 // SelectStatement represents a SOQL SELECT query.
 type SelectStatement struct {
-	Fields  []Field
-	Object  string
-	Where   *WhereClause
-	OrderBy []OrderByField
-	Limit   *int
-	Offset  *int
+	Fields     []Field
+	SubQueries []SubQuery
+	Object     string
+	Where      *WhereClause
+	GroupBy    []Field
+	Having     *WhereClause
+	OrderBy    []OrderByField
+	Limit      *int
+	Offset     *int
+}
+
+// SubQuery represents a parent-child subquery in the SELECT field list,
+// e.g. (SELECT Id, Subject FROM Cases) inside a top-level Account query.
+type SubQuery struct {
+	Relationship string
+	Fields       []Field
+	Where        *WhereClause
+	OrderBy      []OrderByField
+	Limit        *int
+	Offset       *int
 }
 
 // Field represents a field in the SELECT clause.
 type Field struct {
-	Name     string // e.g., "Subject" or "Name" for "Owner.Name"
-	Relation string // e.g., "Owner" for "Owner.Name" (empty for direct fields)
+	Name      string // e.g., "Subject" or "Name" for "Owner.Name"; empty for COUNT()
+	Relation  string // e.g., "Owner" for "Owner.Name" (empty for direct fields)
+	Alias     string // optional alias from "expr alias" or "expr AS alias"
+	Aggregate string // empty, or one of COUNT, COUNT_DISTINCT, SUM, AVG, MIN, MAX
 }
 
 // FullName returns the full field name including relation.
@@ -22,6 +38,16 @@ func (f Field) FullName() string {
 		return f.Relation + "." + f.Name
 	}
 	return f.Name
+}
+
+// AggregateKey returns the canonical aggregate spelling (e.g. "COUNT(Id)" or
+// "COUNT()") used as a lookup key in HAVING / ORDER BY references that don't
+// use an alias. Returns "" when the field is not an aggregate.
+func (f Field) AggregateKey() string {
+	if f.Aggregate == "" {
+		return ""
+	}
+	return f.Aggregate + "(" + f.FullName() + ")"
 }
 
 // WhereClause represents a WHERE clause with conditions.

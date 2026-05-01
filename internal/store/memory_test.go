@@ -105,6 +105,30 @@ func TestMemoryStore_Index(t *testing.T) {
 	}
 }
 
+// TestMemoryStore_CaseAccountIndex covers the T6 hotfix that registered
+// Case.AccountId as a secondary index so the Account detail page can
+// resolve related cases via GetByIndex.
+func TestMemoryStore_CaseAccountIndex(t *testing.T) {
+	s := store.NewMemoryStore()
+
+	s.Create("Case", store.Record{"Id": "c1", "AccountId": "acc1", "Subject": "A1"})
+	s.Create("Case", store.Record{"Id": "c2", "AccountId": "acc1", "Subject": "A2"})
+	s.Create("Case", store.Record{"Id": "c3", "AccountId": "acc2", "Subject": "B1"})
+
+	acc1Cases, err := s.GetByIndex("Case", "AccountId", "acc1")
+	if err != nil {
+		t.Fatalf("GetByIndex failed: %v", err)
+	}
+	if len(acc1Cases) != 2 {
+		t.Errorf("expected 2 cases for acc1, got %d", len(acc1Cases))
+	}
+
+	acc2Cases, _ := s.GetByIndex("Case", "AccountId", "acc2")
+	if len(acc2Cases) != 1 {
+		t.Errorf("expected 1 case for acc2, got %d", len(acc2Cases))
+	}
+}
+
 func TestMemoryStore_Count(t *testing.T) {
 	s := store.NewMemoryStore()
 
