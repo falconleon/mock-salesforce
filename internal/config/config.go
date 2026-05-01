@@ -29,10 +29,10 @@ type Config struct {
 	// IGNORE X-Forwarded-Proto / X-Forwarded-Host. When empty, discovery
 	// falls back to "http://" + r.Host (forwarded headers are not trusted).
 	// Sourced from MOCK_PUBLIC_BASE_URL.
-	PublicBaseURL    string
-	MockUsers        map[string]string // email -> password
-	SessionSecret    string
-	AdminToken       string // X-Admin-Token required for /admin/users; empty disables the endpoint
+	PublicBaseURL string
+	MockUsers     map[string]string // email -> password
+	SessionSecret string
+	AdminToken    string // X-Admin-Token required for /admin/users; empty disables the endpoint
 	// MockRefreshRotation enables refresh-token rotation on the
 	// refresh_token grant per OAuth 2.1 / RFC 6749 §10.4. When true
 	// (default), each refresh exchange issues a fresh refresh_token and
@@ -52,17 +52,17 @@ type Config struct {
 // Default returns a Config with default values.
 func Default() *Config {
 	return &Config{
-		Port:             8080,
-		LogLevel:         "info",
-		SeedDataPath:     "./testdata/seed",
-		AuthEnabled:      true,
-		MockClientID:     "mock-client-id",
-		MockClientSecret: "mock-client-secret",
-		MockUsername:     "demo@falcon.local",
-		MockPassword:     "demo123",
-		APIVersion:       "v66.0",
-		InstanceURL:      "http://localhost:8080",
-		SessionSecret:    "sf-mock-dev-secret",
+		Port:                8080,
+		LogLevel:            "info",
+		SeedDataPath:        "./testdata/seed",
+		AuthEnabled:         true,
+		MockClientID:        "mock-client-id",
+		MockClientSecret:    "mock-client-secret",
+		MockUsername:        "demo@falcon.local",
+		MockPassword:        "demo123",
+		APIVersion:          "v66.0",
+		InstanceURL:         "http://localhost:8080",
+		SessionSecret:       "sf-mock-dev-secret",
 		MockRefreshRotation: true,
 	}
 }
