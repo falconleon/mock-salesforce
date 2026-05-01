@@ -227,6 +227,7 @@ func TestFromEnv_AllDocumentedVars(t *testing.T) {
 	t.Setenv("BASE_URL", "http://ext.test/sf/")
 	t.Setenv("ADMIN_TOKEN", "admin-secret")
 	t.Setenv("MOCK_REFRESH_ROTATION", "false")
+	t.Setenv("MOCK_PUBLIC_BASE_URL", "https://login.example.com/")
 
 	cfg, err := FromEnv()
 	if err != nil {
@@ -252,6 +253,7 @@ func TestFromEnv_AllDocumentedVars(t *testing.T) {
 		{"BaseURL", cfg.BaseURL, "http://ext.test/sf"},
 		{"AdminToken", cfg.AdminToken, "admin-secret"},
 		{"MockRefreshRotation", cfg.MockRefreshRotation, false},
+		{"PublicBaseURL", cfg.PublicBaseURL, "https://login.example.com"},
 	}
 	for _, c := range checks {
 		if c.got != c.want {

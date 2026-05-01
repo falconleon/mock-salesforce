@@ -112,6 +112,7 @@ Relationship traversal supports: `Case.Account`, `Case.Owner`, `Case.CreatedBy`,
 | `API_VERSION` | `v66.0` | Salesforce API version |
 | `INSTANCE_URL` | `http://localhost:8080` | Returned in OAuth response |
 | `BASE_PATH` | _(empty)_ | URL prefix for all template links |
+| `MOCK_PUBLIC_BASE_URL` | _(empty)_ | Override base URL used in OIDC discovery doc; ignores `X-Forwarded-*` headers when set. Defaults to request `Host` header. |
 
 ## Data Generation
 

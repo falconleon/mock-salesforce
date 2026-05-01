@@ -27,11 +27,12 @@ func NewDiscoveryHandler(cfg *config.Config, logger zerolog.Logger) *DiscoveryHa
 }
 
 // HandleDiscovery serves GET /.well-known/openid-configuration. The
-// endpoint URLs are built from the live request (honouring
-// X-Forwarded-Proto / X-Forwarded-Host) so the document remains valid
-// regardless of the host/port the server is reached on.
+// endpoint URLs use cfg.PublicBaseURL when set; otherwise they fall back
+// to "http://" + r.Host. X-Forwarded-Proto / X-Forwarded-Host are NOT
+// trusted (an attacker controlling those headers could otherwise poison
+// the discovery document and steer clients to a hostile issuer).
 func (h *DiscoveryHandler) HandleDiscovery(w http.ResponseWriter, r *http.Request) {
-	issuer := requestBaseURL(r)
+	issuer := h.baseURL(r)
 	doc := map[string]any{
 		"issuer":                                issuer,
 		"authorization_endpoint":                issuer + "/services/oauth2/authorize",
@@ -49,18 +50,14 @@ func (h *DiscoveryHandler) HandleDiscovery(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, doc)
 }
 
-// requestBaseURL returns scheme://host derived from the live request,
-// honouring X-Forwarded-Proto and X-Forwarded-Host when present.
-func requestBaseURL(r *http.Request) string {
-	scheme := "http"
-	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
-		scheme = proto
-	} else if r.TLS != nil {
-		scheme = "https"
+// baseURL returns the absolute base for discovery endpoints. When
+// cfg.PublicBaseURL is set it is used verbatim; otherwise the base is
+// "http://" + r.Host. X-Forwarded-* headers are deliberately ignored to
+// prevent host-header / forwarded-host injection from rewriting the
+// advertised issuer and endpoint URLs.
+func (h *DiscoveryHandler) baseURL(r *http.Request) string {
+	if h.config != nil && h.config.PublicBaseURL != "" {
+		return h.config.PublicBaseURL
 	}
-	host := r.Host
-	if fwd := r.Header.Get("X-Forwarded-Host"); fwd != "" {
-		host = fwd
-	}
-	return scheme + "://" + host
+	return "http://" + r.Host
 }

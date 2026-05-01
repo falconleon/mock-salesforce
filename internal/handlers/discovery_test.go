@@ -17,7 +17,14 @@ import (
 // with the supplied request, returning the recorded response.
 func newDiscovery(t *testing.T, req *http.Request) *httptest.ResponseRecorder {
 	t.Helper()
-	h := handlers.NewDiscoveryHandler(config.Default(), zerolog.Nop())
+	return newDiscoveryWithConfig(t, config.Default(), req)
+}
+
+// newDiscoveryWithConfig builds a handler against the supplied config
+// and invokes it with the request, returning the recorded response.
+func newDiscoveryWithConfig(t *testing.T, cfg *config.Config, req *http.Request) *httptest.ResponseRecorder {
+	t.Helper()
+	h := handlers.NewDiscoveryHandler(cfg, zerolog.Nop())
 	rec := httptest.NewRecorder()
 	h.HandleDiscovery(rec, req)
 	return rec
@@ -133,19 +140,66 @@ func TestDiscoveryHandler_ContentType(t *testing.T) {
 	}
 }
 
-func TestDiscoveryHandler_ForwardedProtoAndHost(t *testing.T) {
+// TestDiscovery_IgnoresForwardedHostByDefault confirms that when
+// cfg.PublicBaseURL is unset, X-Forwarded-Proto / X-Forwarded-Host
+// cannot poison the discovery document. The base URL must derive from
+// the request Host header only.
+func TestDiscovery_IgnoresForwardedHostByDefault(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "http://internal:8080/.well-known/openid-configuration", nil)
 	req.Header.Set("X-Forwarded-Proto", "https")
-	req.Header.Set("X-Forwarded-Host", "public.example.com")
+	req.Header.Set("X-Forwarded-Host", "evil.example")
 	rec := newDiscovery(t, req)
 	doc := decodeDiscovery(t, rec)
 
-	issuer, _ := doc["issuer"].(string)
-	if issuer != "https://public.example.com" {
-		t.Errorf("issuer = %q, want https://public.example.com", issuer)
+	endpoints := []string{
+		"issuer",
+		"authorization_endpoint",
+		"token_endpoint",
+		"userinfo_endpoint",
+		"revocation_endpoint",
+		"introspection_endpoint",
 	}
-	tok, _ := doc["token_endpoint"].(string)
-	if tok != "https://public.example.com/services/oauth2/token" {
-		t.Errorf("token_endpoint = %q", tok)
+	for _, k := range endpoints {
+		v, _ := doc[k].(string)
+		if strings.Contains(v, "evil.example") {
+			t.Errorf("%s = %q must not contain evil.example", k, v)
+		}
+		if !strings.HasPrefix(v, "http://internal:8080") {
+			t.Errorf("%s = %q, expected prefix http://internal:8080", k, v)
+		}
+	}
+}
+
+// TestDiscovery_PublicBaseURLOverridesEverything confirms that a
+// configured cfg.PublicBaseURL wins over both the request Host and any
+// X-Forwarded-* headers an attacker might supply.
+func TestDiscovery_PublicBaseURLOverridesEverything(t *testing.T) {
+	cfg := config.Default()
+	cfg.PublicBaseURL = "https://login.example.com"
+	req := httptest.NewRequest(http.MethodGet, "http://internal:8080/.well-known/openid-configuration", nil)
+	req.Header.Set("X-Forwarded-Proto", "http")
+	req.Header.Set("X-Forwarded-Host", "evil.example")
+	rec := newDiscoveryWithConfig(t, cfg, req)
+	doc := decodeDiscovery(t, rec)
+
+	endpoints := []string{
+		"issuer",
+		"authorization_endpoint",
+		"token_endpoint",
+		"userinfo_endpoint",
+		"revocation_endpoint",
+		"introspection_endpoint",
+	}
+	for _, k := range endpoints {
+		v, _ := doc[k].(string)
+		if !strings.HasPrefix(v, "https://login.example.com") {
+			t.Errorf("%s = %q, expected prefix https://login.example.com", k, v)
+		}
+		if strings.Contains(v, "evil.example") {
+			t.Errorf("%s = %q must not contain evil.example", k, v)
+		}
+		if strings.Contains(v, "internal:8080") {
+			t.Errorf("%s = %q must not contain request Host", k, v)
+		}
 	}
 }

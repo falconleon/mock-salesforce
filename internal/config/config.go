@@ -24,6 +24,12 @@ type Config struct {
 	InstanceURL      string
 	BaseURL          string // Externally-reachable URL (overrides InstanceURL+BasePath for OAuth)
 	BasePath         string
+	// PublicBaseURL, when non-empty, is used as the base for absolute URLs
+	// in the OIDC discovery document and causes the discovery handler to
+	// IGNORE X-Forwarded-Proto / X-Forwarded-Host. When empty, discovery
+	// falls back to "http://" + r.Host (forwarded headers are not trusted).
+	// Sourced from MOCK_PUBLIC_BASE_URL.
+	PublicBaseURL    string
 	MockUsers        map[string]string // email -> password
 	SessionSecret    string
 	AdminToken       string // X-Admin-Token required for /admin/users; empty disables the endpoint
@@ -134,6 +140,9 @@ func FromEnv() (*Config, error) {
 	}
 	if basePath := os.Getenv("BASE_PATH"); basePath != "" {
 		cfg.BasePath = strings.TrimRight(basePath, "/")
+	}
+	if publicBaseURL := os.Getenv("MOCK_PUBLIC_BASE_URL"); publicBaseURL != "" {
+		cfg.PublicBaseURL = strings.TrimRight(publicBaseURL, "/")
 	}
 	if mockUsers := os.Getenv("MOCK_USERS"); mockUsers != "" {
 		parsed, err := ParseUsers(mockUsers)
