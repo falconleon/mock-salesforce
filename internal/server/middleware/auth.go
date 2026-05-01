@@ -25,15 +25,16 @@ const (
 // Endpoints that perform their own auth (revoke/introspect) or are
 // intentionally unauthenticated (token) are listed here.
 var publicPaths = map[string]bool{
-	"/services/oauth2/token":      true,
-	"/services/oauth2/revoke":     true,
-	"/services/oauth2/introspect": true,
-	"/services/oauth2/userinfo":   true,
-	"/services/oauth2/authorize":  true,
-	"/health":                     true,
-	"/":                           true,
-	"/login":                      true,
-	"/logout":                     true,
+	"/services/oauth2/token":            true,
+	"/services/oauth2/revoke":           true,
+	"/services/oauth2/introspect":       true,
+	"/services/oauth2/userinfo":         true,
+	"/services/oauth2/authorize":        true,
+	"/.well-known/openid-configuration": true,
+	"/health":                           true,
+	"/":                                 true,
+	"/login":                            true,
+	"/logout":                           true,
 }
 
 // TokenInfo carries metadata about an issued OAuth token. Used by the

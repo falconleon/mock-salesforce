@@ -193,6 +193,12 @@ func (h *OAuthHandler) handleAuthorizationCodeGrant(w http.ResponseWriter, r *ht
 			"redirect_uri does not match the authorization request")
 		return
 	}
+	// Defence in depth: an allowlist edit between issue and exchange
+	// must invalidate codes bound to URIs that are no longer registered.
+	if !h.config.IsRedirectURIAllowed(ac.RedirectURI) {
+		h.writeOAuthError(w, http.StatusBadRequest, "invalid_grant", "redirect_uri no longer registered")
+		return
+	}
 	if !verifyPKCE(verifier, ac.CodeChallenge, ac.CodeChallengeMethod) {
 		h.writeOAuthError(w, http.StatusBadRequest, "invalid_grant",
 			"PKCE code_verifier verification failed")

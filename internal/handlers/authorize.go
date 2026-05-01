@@ -145,11 +145,16 @@ func (h *AuthorizeHandler) validateClientAndRedirect(w http.ResponseWriter, p au
 		h.errorHTML(w, http.StatusBadRequest, "invalid_request", "missing redirect_uri")
 		return false
 	}
-	// Mock accepts any well-formed absolute URL; production Salesforce
-	// restricts to the connected app's registered URIs.
+	// Reject malformed values; production Salesforce restricts to the
+	// connected app's registered URIs. The MockRedirectURIs allowlist
+	// (RFC 6749 §3.1.2.2) provides the same protection here when set.
 	u, err := url.Parse(p.redirectURI)
 	if err != nil || !u.IsAbs() {
 		h.errorHTML(w, http.StatusBadRequest, "invalid_request", "malformed redirect_uri")
+		return false
+	}
+	if !h.config.IsRedirectURIAllowed(p.redirectURI) {
+		h.errorHTML(w, http.StatusBadRequest, "invalid_request", "redirect_uri not registered for this client_id")
 		return false
 	}
 	return true

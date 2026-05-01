@@ -66,6 +66,11 @@ func main() {
 	cfg.MockUsers = parsedUsers
 	cfg.SessionSecret = *sessionSecret
 	cfg.AdminToken = *adminToken
+	redirectURIs, permissive := config.LoadRedirectURIsFromEnv()
+	cfg.MockRedirectURIs = redirectURIs
+	if permissive {
+		logger.Warn().Msg("redirect_uri allowlist disabled")
+	}
 
 	// Log startup configuration
 	logger.Info().

@@ -54,6 +54,28 @@ curl -H "Authorization: Bearer <token>" \
 
 **Session cookies** — when `MOCK_USERS` is set, the server renders a login form at `GET /`. Successful login sets an HMAC-signed session cookie valid for subsequent UI and API requests.
 
+### Connected App redirect URIs
+
+The `authorization_code` flow on `/services/oauth2/authorize` and `/services/oauth2/token` enforces an allowlist of `redirect_uri` values, mirroring a Salesforce Connected App's "Callback URL" list (RFC 6749 §3.1.2.2). The allowlist is configured via the `MOCK_REDIRECT_URIS` environment variable as a comma-separated list.
+
+Defaults when `MOCK_REDIRECT_URIS` is unset:
+
+```
+http://localhost:1717/OauthRedirect   # sf CLI (`sf org login web`)
+http://localhost:8080/callback         # mock's own debug callback
+```
+
+A request whose `redirect_uri` is not on the list is rejected at `/authorize` with a 400 HTML page (`invalid_request: redirect_uri not registered for this client_id`). The `/token` endpoint repeats the check on exchange and returns `{"error":"invalid_grant","error_description":"redirect_uri no longer registered"}` if the URI was removed between issue and exchange.
+
+Setting `MOCK_REDIRECT_URIS=` (explicitly empty) disables the allowlist entirely; the server logs a `redirect_uri allowlist disabled` WARN at startup and accepts any well-formed absolute URI. This permissive mode is intended for ad-hoc local debugging only.
+
+> **Note for falcon-backend (and other consumers calling /services/oauth2/authorize):**
+> Any external app driving the `authorization_code` flow against this mock MUST add its callback to `MOCK_REDIRECT_URIS` or it will receive an HTTP 400 from `/authorize`. For example, when running falcon-backend behind nginx in OrbStack:
+>
+> ```bash
+> MOCK_REDIRECT_URIS=http://localhost:1717/OauthRedirect,http://nginx.falcon-backend.orb.local/oauth/callback
+> ```
+
 ## SOQL Support
 
 The built-in SOQL engine handles:
@@ -84,6 +106,7 @@ Relationship traversal supports: `Case.Account`, `Case.Owner`, `Case.CreatedBy`,
 | `MOCK_USERNAME` | `demo@falcon.local` | Single-user OAuth username |
 | `MOCK_PASSWORD` | `demo123` | Single-user OAuth password |
 | `MOCK_USERS` | _(empty)_ | Multi-user list: `email:pass,email:pass,...` |
+| `MOCK_REDIRECT_URIS` | `http://localhost:1717/OauthRedirect,http://localhost:8080/callback` | Comma-separated allowlist of OAuth `redirect_uri` values for the `authorization_code` flow. Set empty to disable (permissive WARN). |
 | `SESSION_SECRET` | `sf-mock-dev-secret` | HMAC key for session cookies |
 | `API_VERSION` | `v66.0` | Salesforce API version |
 | `INSTANCE_URL` | `http://localhost:8080` | Returned in OAuth response |

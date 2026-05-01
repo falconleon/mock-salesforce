@@ -22,6 +22,7 @@ const stubConsentTmpl = `{{define "layout"}}<html><body>consent for {{.ClientID}
 func newAuthorizeHarness(t *testing.T) (*handlers.AuthorizeHandler, *handlers.AuthCodeStore, *config.Config) {
 	t.Helper()
 	cfg := config.Default()
+	cfg.MockRedirectURIs = []string{"https://app.example/cb"}
 	tpl := template.Must(template.New("").Parse(stubConsentTmpl))
 	store := handlers.NewAuthCodeStore()
 	h := handlers.NewAuthorizeHandler(cfg, store, tpl, zerolog.Nop())
@@ -245,4 +246,55 @@ func errFromLocation(t *testing.T, loc string) string {
 		t.Fatalf("parse Location %q: %v", loc, err)
 	}
 	return u.Query().Get("error")
+}
+
+// H1: redirect_uri allowlist enforcement at /authorize.
+func TestAuthorize_Get_AllowlistedRedirectURI_Accepted(t *testing.T) {
+	h, _, cfg := newAuthorizeHarness(t)
+	req := httptest.NewRequest(http.MethodGet, authorizeURL(cfg, nil), nil)
+	addSession(req, cfg, "demo@falcon.local")
+	rec := httptest.NewRecorder()
+	h.HandleGet(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 consent for allowlisted URI, got %d (body=%s)", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAuthorize_Get_NonAllowlistedRedirectURI_Rejected400HTML(t *testing.T) {
+	h, _, cfg := newAuthorizeHarness(t)
+	req := httptest.NewRequest(http.MethodGet,
+		authorizeURL(cfg, url.Values{"redirect_uri": {"https://attacker.example/cb"}}), nil)
+	addSession(req, cfg, "demo@falcon.local")
+	rec := httptest.NewRecorder()
+	h.HandleGet(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "" {
+		t.Errorf("must not redirect to non-allowlisted URI, got Location=%q", loc)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "text/html") {
+		t.Errorf("expected HTML content type, got %q", ct)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, "redirect_uri not registered") {
+		t.Errorf("expected error body to mention redirect_uri, got: %s", body)
+	}
+}
+
+// Permissive fallback: when the allowlist is empty/nil, any well-formed
+// redirect_uri is accepted (matches the env-set-but-empty WARN path).
+func TestAuthorize_Get_PermissiveFallback_AllowsAnyURI(t *testing.T) {
+	h, _, cfg := newAuthorizeHarness(t)
+	cfg.MockRedirectURIs = nil
+	req := httptest.NewRequest(http.MethodGet,
+		authorizeURL(cfg, url.Values{"redirect_uri": {"https://anything.example/cb"}}), nil)
+	addSession(req, cfg, "demo@falcon.local")
+	rec := httptest.NewRecorder()
+	h.HandleGet(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("permissive: expected 200, got %d (body=%s)", rec.Code, rec.Body.String())
+	}
 }

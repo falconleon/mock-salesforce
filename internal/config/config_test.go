@@ -113,3 +113,65 @@ func TestFromEnvUnsetMockUsers(t *testing.T) {
 		t.Errorf("MockUsers=%v want empty", cfg.MockUsers)
 	}
 }
+
+// H1: Default() must NOT seed MockRedirectURIs; tests rely on permissive
+// behaviour so they don't accidentally accept random URIs.
+func TestDefaultLeavesRedirectURIsNil(t *testing.T) {
+	cfg := Default()
+	if cfg.MockRedirectURIs != nil {
+		t.Errorf("Default().MockRedirectURIs = %v, want nil", cfg.MockRedirectURIs)
+	}
+}
+
+func TestLoadRedirectURIsFromEnv_UnsetReturnsSFCLIDefaults(t *testing.T) {
+	os.Unsetenv("MOCK_REDIRECT_URIS")
+	uris, permissive := LoadRedirectURIsFromEnv()
+	if permissive {
+		t.Error("permissive should be false when env unset")
+	}
+	want := DefaultRedirectURIs()
+	if len(uris) != len(want) {
+		t.Fatalf("uris=%v, want %v", uris, want)
+	}
+	for i, u := range want {
+		if uris[i] != u {
+			t.Errorf("uris[%d]=%q, want %q", i, uris[i], u)
+		}
+	}
+}
+
+func TestLoadRedirectURIsFromEnv_SetReturnsParsed(t *testing.T) {
+	t.Setenv("MOCK_REDIRECT_URIS", "https://a.example/cb, https://b.example/cb")
+	uris, permissive := LoadRedirectURIsFromEnv()
+	if permissive {
+		t.Error("permissive should be false when env has values")
+	}
+	if len(uris) != 2 || uris[0] != "https://a.example/cb" || uris[1] != "https://b.example/cb" {
+		t.Errorf("uris=%v", uris)
+	}
+}
+
+func TestLoadRedirectURIsFromEnv_EmptyTriggersPermissive(t *testing.T) {
+	t.Setenv("MOCK_REDIRECT_URIS", "")
+	uris, permissive := LoadRedirectURIsFromEnv()
+	if !permissive {
+		t.Error("permissive should be true when env set but empty")
+	}
+	if uris != nil {
+		t.Errorf("uris should be nil in permissive mode, got %v", uris)
+	}
+}
+
+func TestIsRedirectURIAllowed(t *testing.T) {
+	cfg := &Config{MockRedirectURIs: []string{"https://a/cb", "https://b/cb"}}
+	if !cfg.IsRedirectURIAllowed("https://a/cb") {
+		t.Error("expected allowlisted URI to be accepted")
+	}
+	if cfg.IsRedirectURIAllowed("https://c/cb") {
+		t.Error("expected non-allowlisted URI to be rejected")
+	}
+	permissive := &Config{}
+	if !permissive.IsRedirectURIAllowed("https://anything/cb") {
+		t.Error("permissive (empty allowlist) should accept any URI")
+	}
+}

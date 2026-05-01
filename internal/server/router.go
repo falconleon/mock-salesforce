@@ -30,6 +30,7 @@ func (s *Server) setupRoutes() http.Handler {
 	// Create handlers with dependencies
 	authCodeStore := handlers.NewAuthCodeStore()
 	oauthHandler := handlers.NewOAuthHandler(s.config, s.logger).WithAuthCodes(authCodeStore)
+	discoveryHandler := handlers.NewDiscoveryHandler(s.config, s.logger)
 	healthHandler := handlers.NewHealthHandler(s.logger)
 	queryHandler := handlers.NewQueryHandler(s.store, s.logger)
 	sobjectHandler := handlers.NewSObjectHandler(s.store, s.logger)
@@ -40,6 +41,7 @@ func (s *Server) setupRoutes() http.Handler {
 	mux.HandleFunc("GET /services/oauth2/revoke", oauthHandler.HandleRevoke)
 	mux.HandleFunc("POST /services/oauth2/introspect", oauthHandler.HandleIntrospect)
 	mux.HandleFunc("GET /services/oauth2/userinfo", oauthHandler.HandleUserinfo)
+	mux.HandleFunc("GET /.well-known/openid-configuration", discoveryHandler.HandleDiscovery)
 	mux.HandleFunc("GET /health", healthHandler.HandleHealth)
 
 	basePath := s.config.BasePath

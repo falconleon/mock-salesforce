@@ -816,6 +816,7 @@ func pkcePair(t *testing.T, verifier string) (string, string) {
 func authCodeHarness(t *testing.T, method string) (*handlers.OAuthHandler, *handlers.AuthCodeStore, *handlers.AuthCode, string) {
 	t.Helper()
 	cfg := config.Default()
+	cfg.MockRedirectURIs = []string{"https://app.example/cb"}
 	store := handlers.NewAuthCodeStore()
 	h := handlers.NewOAuthHandler(cfg, zerolog.Nop()).WithAuthCodes(store)
 	verifier := "abc123-very-long-code-verifier-that-is-enough-bytes"
@@ -1066,3 +1067,41 @@ func TestOAuthHandler_RefreshTokenGrant_RotationDisabled_EchoesRefresh(t *testin
 	}
 }
 
+// H1: /token authorization_code re-checks the stored redirect_uri
+// against the allowlist (defence in depth). If an operator removes a
+// URI between issue and exchange, the outstanding code must be rejected
+// with invalid_grant even though the form-supplied redirect_uri still
+// matches the stored value.
+func TestOAuthHandler_AuthorizationCodeGrant_RedirectURIRemovedFromAllowlist_Fails(t *testing.T) {
+	cfg := config.Default()
+	cfg.MockRedirectURIs = []string{"https://app.example/cb"}
+	store := handlers.NewAuthCodeStore()
+	h := handlers.NewOAuthHandler(cfg, zerolog.Nop()).WithAuthCodes(store)
+	verifier := "abc123-very-long-code-verifier-that-is-enough-bytes"
+	_, challenge := pkcePair(t, verifier)
+	ac := store.Issue(cfg.MockClientID, "https://app.example/cb", "api", challenge, "S256", cfg.MockUsername)
+
+	// Operator tightens the allowlist after issue but before exchange.
+	cfg.MockRedirectURIs = []string{"https://other.example/cb"}
+
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("client_id", cfg.MockClientID)
+	form.Set("client_secret", cfg.MockClientSecret)
+	form.Set("code", ac.Code)
+	form.Set("redirect_uri", ac.RedirectURI)
+	form.Set("code_verifier", verifier)
+
+	rec := postForm(h.HandleToken, "/services/oauth2/token", form, "POST")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 after allowlist tightened, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp models.OAuthError
+	json.NewDecoder(rec.Body).Decode(&resp)
+	if resp.Error != "invalid_grant" {
+		t.Errorf("expected invalid_grant, got %q", resp.Error)
+	}
+	if !strings.Contains(resp.ErrorDescription, "no longer registered") {
+		t.Errorf("expected description to mention no longer registered, got %q", resp.ErrorDescription)
+	}
+}
