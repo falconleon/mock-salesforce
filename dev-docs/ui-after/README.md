@@ -5,6 +5,8 @@ Credentials: `demo@falcon.local` / `demo123`.
 
 **v2 changes applied (UI-5):** FalconMode brand palette retune (deep-blue primary `#1A3A6D`, slate-blue muted, charcoal text, light-gray bg), breadcrumb link underline (WCAG 1.4.1), heading order h3→h2 (WCAG 1.3.1), removed dead `.playground-chips` CSS rules.
 
+**v3 changes applied (UI-7):** ESCALATED status pill now uses FalconMode amber (`--color-warning-bg: #FDF4E6` / `--color-warning-text: #7C2D12`) via `.badge-orange` instead of legacy red. P1 priority pills also use the same amber tones (consequential — shared `.badge-orange` class). Recaptured `cases-list.png` and `account-detail.png` (ESCALATED rows visible in both).
+
 | filename | URL | description |
 |---|---|---|
 | login.png | /login | Login page (logged-out state) |

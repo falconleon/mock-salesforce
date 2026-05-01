@@ -17,6 +17,8 @@
     --color-danger:          #991b1b;  /* 7.0:1 on white ✓ */
     --color-success:         #38A169;  /* falconmode-cyber-green */
     --color-warning:         #DD6B20;  /* falconmode-amber */
+    --color-warning-bg:      #FDF4E6;  /* falconmode-amber-lighter */
+    --color-warning-text:    #7C2D12;  /* deep amber — ~10:1 on #FDF4E6, WCAG AA ✓ */
 
     /* Spacing (8-pt grid) */
     --space-1: 4px;
@@ -225,7 +227,7 @@ body {
 .badge-blue   { background: #dbeafe; color: #1e40af; }
 .badge-green  { background: #d1fae5; color: #065f46; }
 .badge-red    { background: #fee2e2; color: #991b1b; }
-.badge-orange { background: #ffedd5; color: #9a3412; }
+.badge-orange { background: var(--color-warning-bg); color: var(--color-warning-text); }
 .badge-yellow { background: #fef9c3; color: #713f12; }
 
 /* ── Card ──────────────────────────────────────────────────── */
