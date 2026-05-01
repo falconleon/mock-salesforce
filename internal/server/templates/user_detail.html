@@ -12,13 +12,13 @@
     {{if .User.Name}}<span class="count-badge">{{.User.Name}}</span>{{end}}
 </div>
 
-{{if .Error}}<div class="card" style="border-color:#c23934;color:#c23934;">{{.Error}}</div>{{end}}
+{{if .Error}}<div class="card card-danger" role="alert">{{.Error}}</div>{{end}}
 
 {{if .NewToken.Token}}
-<div class="card" style="border-color:#2e844a;background:#effaf0;">
+<div class="card card-success" role="alert" aria-live="polite">
     <h3>Token Minted — Copy Now</h3>
     <p>This is the only time the plaintext token will be shown. Copy it before leaving this page.</p>
-    <pre style="background:#fff;padding:0.75rem;border:1px solid #cdefc8;border-radius:4px;word-break:break-all;white-space:pre-wrap;"><code>{{.NewToken.Token}}</code></pre>
+    <pre><code>{{.NewToken.Token}}</code></pre>
     <dl class="field-list">
         <dt>Token ID</dt><dd>{{.NewToken.ID}}</dd>
         <dt>Label</dt><dd>{{.NewToken.Label}}</dd>
@@ -28,7 +28,7 @@
 </div>
 {{end}}
 
-<div class="card" style="margin-top:1rem;">
+<div class="card">
     <h3>Edit User</h3>
     <form method="POST" action="{{basePath}}/settings/users/{{.User.ID}}" class="settings-form">
         <label>Username (email)
@@ -47,7 +47,7 @@
     </form>
 </div>
 
-<div class="card" style="margin-top:1rem;">
+<div class="card">
     <h3>API Tokens ({{len .Tokens}})</h3>
     <form method="POST" action="{{basePath}}/settings/users/{{.User.ID}}/tokens" class="settings-form">
         <label>Label
@@ -59,7 +59,7 @@
         <button type="submit">Mint Token</button>
     </form>
     {{if .Tokens}}
-    <table class="sf-table" style="margin-top:0.75rem;">
+    <table class="sf-table">
         <thead>
             <tr><th>Label</th><th>Created</th><th>Expires</th><th></th></tr>
         </thead>
@@ -70,8 +70,8 @@
                 <td>{{fmtTime .CreatedAt}}</td>
                 <td>{{if .ExpiresAt.IsZero}}never{{else}}{{fmtTime .ExpiresAt}}{{end}}</td>
                 <td>
-                    <form method="POST" action="{{basePath}}/settings/users/{{.UserID}}/tokens/{{.ID}}/revoke" style="display:inline;">
-                        <button type="submit" class="badge badge-red" style="border:none;cursor:pointer;">Revoke</button>
+                    <form method="POST" action="{{basePath}}/settings/users/{{.UserID}}/tokens/{{.ID}}/revoke">
+                        <button type="submit" class="badge badge-red">Revoke</button>
                     </form>
                 </td>
             </tr>
@@ -79,16 +79,16 @@
         </tbody>
     </table>
     {{else}}
-    <p class="related-empty" style="margin-top:0.75rem;">No tokens yet. Mint one above to grant API access on behalf of this user.</p>
+    <p class="related-empty">No tokens yet. Mint one above to grant API access on behalf of this user.</p>
     {{end}}
 </div>
 
-<div class="card" style="margin-top:1rem;border-color:#c23934;">
-    <h3 style="color:#c23934;">Danger Zone</h3>
+<div class="card card-danger">
+    <h3>Danger Zone</h3>
     <p>Deleting this user revokes all of their tokens immediately.</p>
     <form method="POST" action="{{basePath}}/settings/users/{{.User.ID}}" onsubmit="return confirm('Delete user {{.User.Username}}? This cannot be undone.');">
         <input type="hidden" name="_action" value="delete">
-        <button type="submit" class="badge badge-red" style="border:none;cursor:pointer;padding:0.5rem 1rem;">Delete User</button>
+        <button type="submit" class="badge badge-red">Delete User</button>
     </form>
 </div>
 {{end}}

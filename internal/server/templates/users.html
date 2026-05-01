@@ -10,7 +10,7 @@
     <span class="count-badge">{{.Total}} items</span>
 </div>
 
-{{if .Error}}<div class="card" style="border-color:#c23934;color:#c23934;">{{.Error}}</div>{{end}}
+{{if .Error}}<div class="card card-danger" role="alert">{{.Error}}</div>{{end}}
 
 <div class="card">
     <h3>Create User</h3>
@@ -31,7 +31,7 @@
     </form>
 </div>
 
-<div class="card" style="margin-top:1rem;">
+<div class="card">
     <h3>All Users ({{.Total}})</h3>
     {{if .Users}}
     <table class="sf-table">

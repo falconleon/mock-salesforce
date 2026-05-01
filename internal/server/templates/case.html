@@ -57,7 +57,7 @@
                         hx-push-url="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=files"
                         onclick="sfActivateTab(this)">Files ({{len .Files}})</a>
                 </div>
-                <div id="tab-content">{{.InitialTabHTML}}</div>
+                <div id="tab-content" aria-live="polite" aria-busy="false">{{.InitialTabHTML}}</div>
             </div>
         </div>
 
