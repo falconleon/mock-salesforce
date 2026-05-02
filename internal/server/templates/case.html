@@ -18,7 +18,7 @@
     <div class="record-grid">
         <div class="record-main">
             <div class="card">
-                <h3>Description</h3>
+                <h2>Description</h2>
                 <div class="description">{{fieldStr $case "Description"}}</div>
             </div>
 
@@ -57,13 +57,13 @@
                         hx-push-url="{{basePath}}/lightning/r/Case/{{$caseID}}/view?tab=files"
                         onclick="sfActivateTab(this)">Files ({{len .Files}})</a>
                 </div>
-                <div id="tab-content">{{.InitialTabHTML}}</div>
+                <div id="tab-content" aria-live="polite" aria-busy="false">{{.InitialTabHTML}}</div>
             </div>
         </div>
 
         <div class="record-sidebar">
             <div class="card">
-                <h3>Case Details</h3>
+                <h2>Case Details</h2>
                 <dl class="field-list">
                     <dt>Status</dt>
                     <dd><span class="badge {{fieldStr $case "Status" | statusClass}}">{{fieldStr $case "Status"}}</span></dd>

@@ -16,7 +16,7 @@
         </div>
     </div>
     <div class="card">
-        <h3>Contact Details</h3>
+        <h2>Contact Details</h2>
         <dl class="field-list">
             <dt>First Name</dt>
             <dd>{{fieldStr .Contact "FirstName"}}</dd>
@@ -40,8 +40,8 @@
     </div>
 
     {{if .Cases}}
-    <div class="card" style="margin-top: 1rem;">
-        <h3>Related Cases ({{len .Cases}})</h3>
+    <div class="card">
+        <h2>Related Cases ({{len .Cases}})</h2>
         <table class="sf-table">
             <thead>
                 <tr><th>Case Number</th><th>Subject</th><th>Status</th><th>Priority</th></tr>

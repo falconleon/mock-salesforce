@@ -1,21 +1,10 @@
 {{template "layout" .}}
 {{define "content"}}
-<style>
-    .consent-card { max-width: 520px; margin: 2rem auto; }
-    .consent-card .scope-list { margin: 0.75rem 0 1rem 1.25rem; color: #444; }
-    .consent-card .redirect-note { color: #555; font-size: 0.875rem; margin-top: 1rem; word-break: break-all; }
-    .consent-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
-    .consent-actions button { padding: 0.6rem 1.25rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; font-size: 0.95rem; }
-    .consent-actions .btn-allow { background: #0176d3; color: white; border-color: #0176d3; }
-    .consent-actions .btn-allow:hover { background: #014486; }
-    .consent-actions .btn-deny { background: white; color: #032d60; }
-    .consent-actions .btn-deny:hover { background: #f3f3f3; }
-</style>
 <div class="page-header">
     <h1>Authorize Application</h1>
 </div>
 <div class="consent-card card">
-    <h3>{{.ClientID}} is requesting access</h3>
+    <h2>{{.ClientID}} is requesting access</h2>
     <p>You are signed in as <strong>{{.CurrentUser}}</strong>.</p>
     <p>This application is requesting permission to:</p>
     <ul class="scope-list">

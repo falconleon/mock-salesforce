@@ -62,7 +62,7 @@ func NewUIHandler(s store.Store, basePath string, sessionSecret string) *UIHandl
 			case "In Progress", "Working":
 				return "badge-blue"
 			case "Escalated":
-				return "badge-red"
+				return "badge-orange"
 			case "On Hold":
 				return "badge-yellow"
 			default:

@@ -6,7 +6,7 @@
 <div class="record-grid playground-grid">
     <div class="record-main">
         <div class="card">
-            <h3>Query</h3>
+            <h2>Query</h2>
             <form id="playground-form"
                   method="post"
                   action="{{basePath}}/playground/run"
@@ -22,7 +22,7 @@
             </form>
         </div>
         <div class="card">
-            <h3>Results</h3>
+            <h2>Results</h2>
             <div id="playground-results">
                 {{if .Results}}{{.Results}}{{else}}<div class="related-empty">Run a query to see results.</div>{{end}}
             </div>
@@ -30,7 +30,7 @@
     </div>
     <div class="record-sidebar">
         <div class="card">
-            <h3>Examples</h3>
+            <h2>Examples</h2>
             <ul class="playground-examples">
                 {{range .Examples}}
                 <li><a href="{{basePath}}/playground?q={{.}}">{{.}}</a></li>
