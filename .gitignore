@@ -1,7 +1,15 @@
-# Thrum data directory (all data lives on a-sync branch via worktree)
-.thrum/
+# Thrum data directory (all data lives on a-sync branch via worktree).
+# Whitelist the project_state.md so coordinators can track it across sessions.
+.thrum/*
+!.thrum/context/
+.thrum/context/*
+!.thrum/context/project_state.md
 .thrum.*.json
 scripts/thrum-startup.sh
+scripts/thrum-check-inbox.sh
+
+# Claude Code workspace
+.claude/
 
 # Compiled binary
 salesforce-mock
@@ -16,3 +24,5 @@ tmp/
 .dolt/
 *.db
 .beads-credential-key
+.beads
+.intent

@@ -183,6 +183,20 @@ func (s *Server) setupRoutes() http.Handler {
 	// Static assets
 	mux.Handle("GET /static/", staticHandler())
 
+	// Favicon — served from the embedded static FS so browsers that
+	// request /favicon.ico directly (no <link rel="icon">) get the
+	// FalconMode mark instead of a 401/404. Public; no auth.
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		data, err := fs.ReadFile(staticFS, "static/favicon.svg")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		_, _ = w.Write(data)
+	})
+
 	// Query endpoint (supports multiple API versions)
 	mux.HandleFunc("GET /services/data/{version}/query", queryHandler.HandleQuery)
 

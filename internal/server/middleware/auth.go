@@ -35,6 +35,7 @@ var publicPaths = map[string]bool{
 	"/":                                 true,
 	"/login":                            true,
 	"/logout":                           true,
+	"/favicon.ico":                      true,
 }
 
 // TokenInfo carries metadata about an issued OAuth token. Used by the
